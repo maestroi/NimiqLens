@@ -7,7 +7,7 @@
 
 NimLens is a mobile-first Nimiq Pay Mini App that acts as a "price lens" for real-world shopping. A user enters or scans a fiat price (EUR, USD, GBP, CHF) and instantly sees the equivalent value in NIM, USDT, BTC, and ETH. If the user connects their Nimiq Pay wallet, NimLens also shows whether their current NIM balance covers the price.
 
-NimLens is open source (MIT), does not custody funds, does not handle seed phrases, and only requests wallet access on explicit user action.
+NimLens is open source (MIT), does not custody funds, and does not handle seed phrases. Wallet account access always requires approval through Nimiq Pay's native dialog.
 
 ## 2. Architecture
 
@@ -42,7 +42,7 @@ Vue Router with 5 routes, one per screen from the brief:
 
 | Route | Screen | Purpose |
 |---|---|---|
-| `/` | Welcome | Explainer, Connect Wallet, Start Manual, Start Scan |
+| `/` | Welcome | Wallet balance overview, fiat values, Start Manual, Start Scan |
 | `/convert` | Converter | Price input, currency selector, conversion cards, balance/affordability |
 | `/scan` | Camera Scan | Camera preview, scan, detected price, confirm/edit |
 | `/rates` | Rates | Current rates table, timestamp, source attribution |
@@ -55,7 +55,7 @@ Vue Router with 5 routes, one per screen from the brief:
 ## 4. Nimiq Pay integration
 
 - **Init**: on app mount, `init({ timeout: 10_000 })` from `@nimiq/mini-app-sdk`. Success sets `isInsideNimiqPay = true`. Failure/timeout sets it `false` — the app remains fully usable (manual conversion works standalone in a regular browser for local development).
-- **Connect wallet**: "Connect Wallet" is a button press (explicit user action) that calls `listAccounts()`. The first returned address is stored and displayed in shortened form, e.g. `NQ07 **** **** 6789`.
+- **Connect wallet**: after provider initialization, the Welcome screen offers "Show wallet balance". Tapping it calls `listAccounts()` so Nimiq Pay can request account approval. The first returned address is stored and displayed in shortened form, e.g. `NQ07 **** **** 6789`. If approval fails, the Welcome screen shows the error and a retry button.
 - **NIM balance**: the Nimiq provider SDK has no balance-read method. NimLens reads NIM balance via the backend, which proxies the connected address to a public Nimiq RPC node's `getAccountByAddress` method and converts Luna → NIM.
   - RPC endpoint: `https://rpc-mainnet.nimiqscan.com`, configurable via `NIMIQ_RPC_URL`.
   - If the RPC call fails, the Converter screen shows "Balance unavailable" in place of the affordability result; conversions still work.

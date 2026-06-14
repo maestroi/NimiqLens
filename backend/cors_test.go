@@ -27,6 +27,43 @@ func TestWithCORS_SetsHeaderAndCallsNext(t *testing.T) {
 	}
 }
 
+func TestWithCORS_MultiOrigin_ReflectsAllowedOrigin(t *testing.T) {
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	handler := withCORS("https://nimiqlens.maestroi.cc, https://maestroi.github.io", next)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
+	req.Header.Set("Origin", "https://maestroi.github.io")
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if got := w.Header().Get("Access-Control-Allow-Origin"); got != "https://maestroi.github.io" {
+		t.Errorf("expected Access-Control-Allow-Origin=https://maestroi.github.io, got %q", got)
+	}
+	if got := w.Header().Get("Vary"); got != "Origin" {
+		t.Errorf("expected Vary=Origin, got %q", got)
+	}
+}
+
+func TestWithCORS_MultiOrigin_OmitsHeaderForUnknownOrigin(t *testing.T) {
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	handler := withCORS("https://nimiqlens.maestroi.cc,https://maestroi.github.io", next)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
+	req.Header.Set("Origin", "https://evil.example.com")
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if got := w.Header().Get("Access-Control-Allow-Origin"); got != "" {
+		t.Errorf("expected no Access-Control-Allow-Origin header, got %q", got)
+	}
+}
+
 func TestWithCORS_HandlesOptionsPreflight(t *testing.T) {
 	called := false
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

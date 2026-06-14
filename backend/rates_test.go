@@ -11,7 +11,7 @@ func TestFetchRates_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, `{
-			"nimiq": {"eur": 0.0123, "usd": 0.0134, "gbp": 0.0105, "chf": 0.0119},
+			"nimiq-2": {"eur": 0.0123, "usd": 0.0134, "gbp": 0.0105, "chf": 0.0119},
 			"bitcoin": {"eur": 58000, "usd": 63000, "gbp": 50000, "chf": 56000},
 			"ethereum": {"eur": 3200, "usd": 3500, "gbp": 2800, "chf": 3100},
 			"tether": {"eur": 0.92, "usd": 1.0, "gbp": 0.79, "chf": 0.88}

@@ -1,0 +1,3 @@
+# Homelab deployment stack — contains real domains, not for the public repo.
+# See docker-compose.homelab.yml.example.
+docker-compose.homelab.yml

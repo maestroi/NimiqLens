@@ -32,7 +32,7 @@ type coinGeckoPrice struct {
 }
 
 var coinGeckoIDToAsset = map[string]string{
-	"nimiq":    "NIM",
+	"nimiq-2":  "NIM", // CoinGecko API ID for Nimiq (NIM); "nimiq" is a stale/wrong entry
 	"bitcoin":  "BTC",
 	"ethereum": "ETH",
 	"tether":   "USDT",
@@ -41,7 +41,7 @@ var coinGeckoIDToAsset = map[string]string{
 // FetchRates fetches NIM, BTC, ETH, and USDT prices in EUR/USD/GBP/CHF from
 // CoinGecko's simple price endpoint and normalizes them into a RatesResponse.
 func FetchRates(client *http.Client, baseURL string) (RatesResponse, error) {
-	url := fmt.Sprintf("%s/simple/price?ids=nimiq,bitcoin,ethereum,tether&vs_currencies=eur,usd,gbp,chf", baseURL)
+	url := fmt.Sprintf("%s/simple/price?ids=nimiq-2,bitcoin,ethereum,tether&vs_currencies=eur,usd,gbp,chf", baseURL)
 
 	resp, err := client.Get(url)
 	if err != nil {

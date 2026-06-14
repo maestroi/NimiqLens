@@ -1,0 +1,82 @@
+import type { FiatCurrency } from './convert'
+
+export interface DetectedPrice {
+  amount: number
+  currency: FiatCurrency
+}
+
+// Matches "1.234,56" / "1,234.56" (grouped) or "12.99" / "1234" / "1234.56" (plain).
+const NUMBER = '\\d{1,3}(?:[.,]\\d{3})+(?:[.,]\\d{1,2})?|\\d+(?:[.,]\\d{1,2})?'
+
+const SYMBOL_CURRENCY: Record<string, FiatCurrency> = {
+  '€': 'EUR',
+  $: 'USD',
+  '£': 'GBP',
+}
+
+interface PricePattern {
+  regex: RegExp
+  currency: (match: RegExpMatchArray) => FiatCurrency
+  amount: (match: RegExpMatchArray) => string
+}
+
+const PATTERNS: PricePattern[] = [
+  // €12.99, $24.50, £9.99
+  {
+    regex: new RegExp(`([€$£])\\s?(${NUMBER})`),
+    currency: (m) => SYMBOL_CURRENCY[m[1]],
+    amount: (m) => m[2],
+  },
+  // 12,99 EUR / 24.50 USD / 9.99 GBP / 12.99 CHF
+  {
+    regex: new RegExp(`(${NUMBER})\\s?(EUR|USD|GBP|CHF)`, 'i'),
+    currency: (m) => m[2].toUpperCase() as FiatCurrency,
+    amount: (m) => m[1],
+  },
+  // CHF 12.99, Fr. 9.50, Fr 9.50
+  {
+    regex: new RegExp(`(?:CHF|Fr\\.?)\\s?(${NUMBER})`, 'i'),
+    currency: () => 'CHF',
+    amount: (m) => m[1],
+  },
+]
+
+/** Parses a number string that may use "." or "," as the decimal or thousands separator. */
+function parseAmount(raw: string): number {
+  const hasComma = raw.includes(',')
+  const hasDot = raw.includes('.')
+
+  if (hasComma && hasDot) {
+    const decimalSep = raw.lastIndexOf(',') > raw.lastIndexOf('.') ? ',' : '.'
+    const thousandsSep = decimalSep === ',' ? '.' : ','
+    return Number.parseFloat(raw.split(thousandsSep).join('').replace(decimalSep, '.'))
+  }
+
+  if (hasComma || hasDot) {
+    const sep = hasComma ? ',' : '.'
+    const parts = raw.split(sep)
+    if (parts.length === 2 && parts[1].length === 2) {
+      return Number.parseFloat(parts.join('.'))
+    }
+    return Number.parseFloat(parts.join(''))
+  }
+
+  return Number.parseFloat(raw)
+}
+
+/**
+ * Scans OCR'd text for a price-like pattern (symbol-prefixed, code-suffixed, or
+ * CHF/Fr.-prefixed) and returns the first match found, or null if none.
+ */
+export function detectPrice(text: string): DetectedPrice | null {
+  for (const pattern of PATTERNS) {
+    const match = text.match(pattern.regex)
+    if (!match) continue
+
+    const amount = parseAmount(pattern.amount(match))
+    if (Number.isNaN(amount)) continue
+
+    return { amount, currency: pattern.currency(match) }
+  }
+  return null
+}
