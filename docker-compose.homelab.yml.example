@@ -36,9 +36,12 @@ services:
         - traefik.http.services.nimlens-api.loadbalancer.server.port=8787
 
   frontend:
+    # Build with the public API URL baked in (Swarm cannot resolve internal service DNS
+    # from nginx, and the frontend calls the Traefik API host directly):
+    #   docker build --build-arg VITE_API_BASE_URL=https://api-nimiqlens.example.com \
+    #     -t ghcr.io/<github-username>/nimlens-frontend:latest ./frontend
+    # Or set the VITE_API_BASE_URL repo variable in GitHub Actions.
     image: ghcr.io/<github-username>/nimlens-frontend:latest
-    environment:
-      - BACKEND_UPSTREAM=nimlens_backend:8787
     networks:
       - traefik
     deploy:
