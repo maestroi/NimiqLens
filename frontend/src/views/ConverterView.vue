@@ -85,6 +85,10 @@ function relativeTime(iso: string): string {
       </select>
     </div>
 
+    <p v-if="ratesStore.loading && !ratesStore.rates" class="mb-4 text-slate-400">
+      Loading rates…
+    </p>
+
     <div v-if="conversions" class="grid grid-cols-2 gap-3 mb-4">
       <div v-for="asset in ASSETS" :key="asset" class="rounded-xl bg-slate-800 p-4">
         <div class="text-sm text-slate-400">{{ asset }}</div>

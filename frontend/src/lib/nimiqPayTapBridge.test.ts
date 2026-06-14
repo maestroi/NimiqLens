@@ -27,4 +27,23 @@ describe('Nimiq Pay tap bridge', () => {
 
     expect(onTap).toHaveBeenCalledOnce()
   })
+
+  it('delivers a synthetic click for router-link taps', () => {
+    Object.defineProperty(window, 'nimiqPay', { value: { requestDeviceIdentifier: vi.fn() }, configurable: true })
+    installNimiqPayTapBridge()
+
+    const link = document.createElement('a')
+    link.href = '/convert'
+    const label = document.createElement('span')
+    const onTap = vi.fn()
+    const invokerKey = Symbol('_vei')
+    Object.assign(link, { [invokerKey]: { onClick: onTap } })
+    link.append(label)
+    document.body.append(link)
+
+    label.dispatchEvent(touchEvent('touchstart', 10, 20))
+    label.dispatchEvent(touchEvent('touchend', 10, 20))
+
+    expect(onTap).toHaveBeenCalledOnce()
+  })
 })

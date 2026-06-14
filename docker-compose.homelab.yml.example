@@ -4,7 +4,7 @@
 # Usage:
 #   cp docker-compose.homelab.yml.example docker-compose.homelab.yml
 #   # edit the domains and image owner below, then:
-#   docker compose -f docker-compose.homelab.yml up -d
+#   docker stack deploy -c docker-compose.homelab.yml nimlens
 #
 # docker-compose.homelab.yml is gitignored so your real domains stay out of
 # the public repo.
@@ -13,12 +13,11 @@
 #   - an HTTPS entrypoint named "websecure"
 #   - a certificate resolver named "letsencrypt"
 #   - an external Docker network named "traefik"
-# Adjust the labels below if your Traefik setup differs.
+# Adjust the deploy.labels below if your Traefik setup differs.
 
 services:
   backend:
     image: ghcr.io/<github-username>/nimlens-backend:latest
-    restart: unless-stopped
     environment:
       - PORT=8787
       - COINGECKO_API_BASE=https://api.coingecko.com/api/v3
@@ -26,28 +25,31 @@ services:
       - ALLOWED_ORIGIN=https://nimiqlens.example.com,https://maestroi.github.io
     networks:
       - traefik
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.nimlens-api.rule=Host(`api-nimiqlens.example.com`)
-      - traefik.http.routers.nimlens-api.entrypoints=websecure
-      - traefik.http.routers.nimlens-api.tls.certresolver=letsencrypt
-      - traefik.http.services.nimlens-api.loadbalancer.server.port=8787
+    deploy:
+      restart_policy:
+        condition: any
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.nimlens-api.rule=Host(`api-nimiqlens.example.com`)
+        - traefik.http.routers.nimlens-api.entrypoints=websecure
+        - traefik.http.routers.nimlens-api.tls.certresolver=letsencrypt
+        - traefik.http.services.nimlens-api.loadbalancer.server.port=8787
 
   frontend:
-    # Built with --build-arg VITE_API_BASE_URL=https://api-nimiqlens.example.com
-    # (set as the VITE_API_BASE_URL repo variable in GitHub Actions).
     image: ghcr.io/<github-username>/nimlens-frontend:latest
-    restart: unless-stopped
-    depends_on:
-      - backend
+    environment:
+      - BACKEND_UPSTREAM=nimlens_backend:8787
     networks:
       - traefik
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.nimlens.rule=Host(`nimiqlens.example.com`)
-      - traefik.http.routers.nimlens.entrypoints=websecure
-      - traefik.http.routers.nimlens.tls.certresolver=letsencrypt
-      - traefik.http.services.nimlens.loadbalancer.server.port=80
+    deploy:
+      restart_policy:
+        condition: any
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.nimlens.rule=Host(`nimiqlens.example.com`)
+        - traefik.http.routers.nimlens.entrypoints=websecure
+        - traefik.http.routers.nimlens.tls.certresolver=letsencrypt
+        - traefik.http.services.nimlens.loadbalancer.server.port=80
 
 networks:
   traefik:

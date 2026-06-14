@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useScanStore } from '../stores/scan'
 import { detectPrice } from '../lib/priceDetection'
@@ -17,6 +17,7 @@ const canvasRef = ref<HTMLCanvasElement | null>(null)
 const stream = ref<MediaStream | null>(null)
 const cameraError = ref<string | null>(null)
 const scanning = ref(false)
+const ocrReady = ref(false)
 const noPriceFound = ref(false)
 const detected = ref(false)
 const editAmount = ref<number | null>(null)
@@ -81,6 +82,12 @@ function confirm() {
   router.push('/convert')
 }
 
+onMounted(() => {
+  void import('tesseract.js').then(() => {
+    ocrReady.value = true
+  })
+})
+
 onUnmounted(() => {
   stopCamera()
 })
@@ -121,8 +128,12 @@ onUnmounted(() => {
       >
         Start camera
       </button>
+      <p v-if="stream && !ocrReady" class="text-sm text-slate-400">
+        Preparing scanner…
+      </p>
+
       <button
-        v-else
+        v-else-if="stream"
         type="button"
         :disabled="scanning"
         class="min-h-[44px] rounded-lg bg-emerald-600 px-4 font-medium disabled:opacity-50"

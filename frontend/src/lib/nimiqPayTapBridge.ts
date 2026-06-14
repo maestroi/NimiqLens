@@ -2,20 +2,40 @@ const MAX_TAP_MOVEMENT = 12
 
 type VueEventInvoker = (event: Event) => void
 
-function getVueClickInvoker(button: HTMLButtonElement): VueEventInvoker | undefined {
-  const invokerKey = Object.getOwnPropertySymbols(button)
+function getVueClickInvoker(element: HTMLElement): VueEventInvoker | undefined {
+  const invokerKey = Object.getOwnPropertySymbols(element)
     .find((symbol) => symbol.description === '_vei')
   if (!invokerKey) return undefined
 
-  const invokers = (button as unknown as Record<symbol, Record<string, VueEventInvoker>>)[invokerKey]
+  const invokers = (element as unknown as Record<symbol, Record<string, VueEventInvoker>>)[invokerKey]
   return invokers?.onClick
+}
+
+function findTappableElement(target: Element): HTMLElement | null {
+  const button = target.closest('button')
+  if (button instanceof HTMLButtonElement) {
+    return button.disabled ? null : button
+  }
+
+  const anchor = target.closest('a[href]')
+  if (anchor instanceof HTMLAnchorElement) {
+    return anchor
+  }
+
+  return null
 }
 
 /**
  * Nimiq Pay's Android WebView often intercepts touch events before they reach
- * Vue's click handlers. Bridge touchend → synthetic click for button taps.
+ * Vue's click handlers. Bridge touchend → synthetic click for buttons and
+ * router-links (anchors).
  */
+let installed = false
+
 export function installNimiqPayTapBridge() {
+  if (installed) return
+  installed = true
+
   const isAndroidWebView = navigator.userAgent.includes('; wv)')
   const inNimiqPay = 'nimiqPay' in window && (window as Window & { nimiqPay?: unknown }).nimiqPay
   if (!inNimiqPay && !isAndroidWebView) return
@@ -38,11 +58,13 @@ export function installNimiqPayTapBridge() {
       || Math.abs(touch.clientY - startY) > MAX_TAP_MOVEMENT
     ) return
 
-    const button = event.target.closest('button')
-    if (!button || button.disabled) return
+    const element = findTappableElement(event.target)
+    if (!element) return
+
+    const invoker = getVueClickInvoker(element)
+    if (!invoker) return
 
     event.preventDefault()
-    const invoker = getVueClickInvoker(button)
-    invoker?.(new MouseEvent('click'))
+    invoker(new MouseEvent('click'))
   }, { capture: true, passive: false })
 }

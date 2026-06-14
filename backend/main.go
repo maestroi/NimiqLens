@@ -29,6 +29,7 @@ func main() {
 	rpcClient := NewNimiqRPCClient(httpClient, nimiqRPCURL)
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /", rootHandler)
 	mux.HandleFunc("GET /api/health", healthHandler)
 	mux.HandleFunc("GET /api/rates", ratesHandler(ratesCache))
 	mux.HandleFunc("GET /api/balance/{address}", balanceHandler(rpcClient))

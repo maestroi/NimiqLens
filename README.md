@@ -76,17 +76,17 @@ Every push to `main` builds and pushes container images to GHCR via
 - `ghcr.io/maestroi/nimlens-backend:latest`
 - `ghcr.io/maestroi/nimlens-frontend:latest`
 
-The frontend image bakes in `VITE_API_BASE_URL` at build time (set as the
-`VITE_API_BASE_URL` repo variable), so it can point at a separate API
-subdomain — see [`docker-compose.homelab.yml.example`](docker-compose.homelab.yml.example)
-for a two-subdomain Traefik setup (`nimiqlens.<domain>` /
-`api-nimiqlens.<domain>`). Copy it to `docker-compose.homelab.yml` (gitignored)
-and fill in your domains:
+The homelab stack proxies `/api` from the frontend container to the backend
+over the Docker network (no client-side API URL config). The backend also
+exposes a root `GET /` discovery endpoint. Use a two-subdomain Traefik setup
+(`nimiqlens.<domain>` / `api-nimiqlens.<domain>`) — see
+[`docker-compose.homelab.yml.example`](docker-compose.homelab.yml.example).
+Copy it to `docker-compose.homelab.yml` (gitignored) and fill in your domains:
 
 ```bash
 cp docker-compose.homelab.yml.example docker-compose.homelab.yml
 # edit domains, then:
-docker compose -f docker-compose.homelab.yml up -d
+docker stack deploy -c docker-compose.homelab.yml nimlens
 ```
 
 ## GitHub Pages (frontend demo)

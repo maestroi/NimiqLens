@@ -10,6 +10,29 @@ import (
 	"time"
 )
 
+func TestRootHandler(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	w := httptest.NewRecorder()
+
+	rootHandler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d", w.Code)
+	}
+
+	var body map[string]any
+	if err := json.NewDecoder(w.Body).Decode(&body); err != nil {
+		t.Fatalf("decoding response: %v", err)
+	}
+	if body["service"] != "nimlens-backend" {
+		t.Fatalf("unexpected service: %v", body["service"])
+	}
+	endpoints, ok := body["endpoints"].(map[string]any)
+	if !ok || endpoints["rates"] != "/api/rates" {
+		t.Fatalf("unexpected endpoints: %v", body["endpoints"])
+	}
+}
+
 func TestHealthHandler(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
 	w := httptest.NewRecorder()

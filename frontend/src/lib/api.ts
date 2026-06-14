@@ -43,16 +43,14 @@ export function resolveApiBase(): string {
   return configured
 }
 
-const API_BASE = resolveApiBase()
-
 export async function fetchRates(): Promise<RatesResponse> {
-  const res = await fetch(`${API_BASE}/api/rates`)
+  const res = await fetch(`${resolveApiBase()}/api/rates`)
   if (!res.ok) throw new Error(`rates request failed: ${res.status}`)
   return res.json() as Promise<RatesResponse>
 }
 
 export async function fetchBalance(address: string): Promise<BalanceResponse> {
-  const res = await fetch(`${API_BASE}/api/balance/${encodeURIComponent(address)}`)
+  const res = await fetch(`${resolveApiBase()}/api/balance/${encodeURIComponent(address)}`)
   if (!res.ok) throw new Error(`balance request failed: ${res.status}`)
   return res.json() as Promise<BalanceResponse>
 }

@@ -49,7 +49,7 @@ export const useWalletStore = defineStore('wallet', {
       this.isInsideNimiqPay = this.provider !== null
       this.initialized = true
       if (this.isInsideNimiqPay) {
-        await this.restoreSession()
+        void this.restoreSession()
       }
     },
     async restoreSession() {

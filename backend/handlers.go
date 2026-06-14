@@ -5,6 +5,19 @@ import (
 	"net/http"
 )
 
+func rootHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"service": "nimlens-backend",
+		"status":  "ok",
+		"endpoints": map[string]string{
+			"health":  "/api/health",
+			"rates":   "/api/rates",
+			"balance": "/api/balance/{address}",
+		},
+	})
+}
+
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})

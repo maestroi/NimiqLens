@@ -18,6 +18,22 @@ All configuration is via environment variables (see [`.env.example`](../.env.exa
 
 ## API
 
+### `GET /`
+
+Service discovery. Lists available API endpoints.
+
+```json
+{
+  "service": "nimlens-backend",
+  "status": "ok",
+  "endpoints": {
+    "health": "/api/health",
+    "rates": "/api/rates",
+    "balance": "/api/balance/{address}"
+  }
+}
+```
+
 ### `GET /api/health`
 
 Liveness check.
