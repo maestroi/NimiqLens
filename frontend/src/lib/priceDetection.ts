@@ -25,13 +25,22 @@ interface PricePattern {
   amount: (match: RegExpMatchArray) => string
 }
 
-const PATTERNS: PricePattern[] = [
+const HIGH_CONFIDENCE_PATTERNS: PricePattern[] = [
   // €12.99, $24.50, £9.99, ¥1500, ₹999
   {
     regex: new RegExp(`([€$£¥₹])\\s?(${NUMBER})`),
     currency: (m) => SYMBOL_CURRENCY[m[1]],
     amount: (m) => m[2],
   },
+  // CHF 12.99, Fr. 9.50, Fr 9.50
+  {
+    regex: new RegExp(`(?:CHF|Fr\\.?)\\s?(${NUMBER})`, 'i'),
+    currency: () => 'CHF',
+    amount: (m) => m[1],
+  },
+]
+
+const OCR_CODE_PATTERNS: PricePattern[] = [
   // 12,99 EUR / 24.50 USD / 9.99 GBP / 12.99 CHF / 1500 JPY / ...
   {
     regex: new RegExp(`(${NUMBER})\\s?(${CURRENCY_CODES})`, 'i'),
@@ -43,12 +52,6 @@ const PATTERNS: PricePattern[] = [
     regex: new RegExp(`(${CURRENCY_CODES})\\s?(${NUMBER})`, 'i'),
     currency: (m) => m[1].toUpperCase() as FiatCurrency,
     amount: (m) => m[2],
-  },
-  // CHF 12.99, Fr. 9.50, Fr 9.50
-  {
-    regex: new RegExp(`(?:CHF|Fr\\.?)\\s?(${NUMBER})`, 'i'),
-    currency: () => 'CHF',
-    amount: (m) => m[1],
   },
 ]
 
@@ -75,18 +78,16 @@ function parseAmount(raw: string): number {
   return Number.parseFloat(raw)
 }
 
-/**
- * Scans OCR'd text for a price-like pattern (symbol-prefixed, code-suffixed, or
- * CHF/Fr.-prefixed) and returns the first match found, or null if none.
- */
-export function detectPrice(text: string, fallbackCurrency?: FiatCurrency): DetectedPrice | null {
-  const normalizedText = text
-    .replace(/(\d)\s*([.,])\s*(\d)/g, '$1$2$3')
-    // "X,-" / "X.-" is a common price-tag shorthand for a whole amount (e.g. "10,-" = 10.00).
-    .replace(/(\d+)\s*[.,]\s*-+/g, '$1,00')
+function normalizeLikelyMissingDecimal(text: string): string {
+  return text
+    .replace(/([€$£¥₹]\s*)0(\d{2})\b/g, '$10,$2')
+    .replace(new RegExp(`\\b(${CURRENCY_CODES})\\s*0(\\d{2})\\b`, 'gi'), '$1 0,$2')
+    .replace(new RegExp(`\\b0(\\d{2})\\s*(${CURRENCY_CODES})\\b`, 'gi'), '0,$1 $2')
+}
 
-  for (const pattern of PATTERNS) {
-    const match = normalizedText.match(pattern.regex)
+function detectWithPatterns(text: string, patterns: PricePattern[]): DetectedPrice | null {
+  for (const pattern of patterns) {
+    const match = text.match(pattern.regex)
     if (!match) continue
 
     const amount = parseAmount(pattern.amount(match))
@@ -95,6 +96,24 @@ export function detectPrice(text: string, fallbackCurrency?: FiatCurrency): Dete
     return { amount, currency: pattern.currency(match) }
   }
 
+  return null
+}
+
+/**
+ * Scans OCR'd text for a price-like pattern (symbol-prefixed, code-suffixed, or
+ * CHF/Fr.-prefixed) and returns the first match found, or null if none.
+ */
+export function detectPrice(text: string, fallbackCurrency?: FiatCurrency): DetectedPrice | null {
+  const normalizedText = normalizeLikelyMissingDecimal(
+    text
+    .replace(/(\d)\s*([.,])\s*(\d)/g, '$1$2$3')
+    // "X,-" / "X.-" is a common price-tag shorthand for a whole amount (e.g. "10,-" = 10.00).
+    .replace(/(\d+)\s*[.,]\s*-+/g, '$1,00'),
+  )
+
+  const explicitSymbolOrFr = detectWithPatterns(normalizedText, HIGH_CONFIDENCE_PATTERNS)
+  if (explicitSymbolOrFr) return explicitSymbolOrFr
+
   if (fallbackCurrency) {
     const bareDecimal = normalizedText.match(/\b(\d+[.,]\d{2})\b/)
     if (bareDecimal) {
@@ -102,5 +121,5 @@ export function detectPrice(text: string, fallbackCurrency?: FiatCurrency): Dete
     }
   }
 
-  return null
+  return detectWithPatterns(normalizedText, OCR_CODE_PATTERNS)
 }

@@ -77,4 +77,12 @@ describe('detectPrice', () => {
   it('detects a rupee price with the ₹ symbol', () => {
     expect(detectPrice('₹999')).toEqual({ amount: 999, currency: 'INR' })
   })
+
+  it('restores a missing decimal separator for a sub-one-unit symbol price like €095', () => {
+    expect(detectPrice('€095')).toEqual({ amount: 0.95, currency: 'EUR' })
+  })
+
+  it('prefers the selected scan currency over a noisy OCR currency code', () => {
+    expect(detectPrice('1,99 GBP', 'EUR')).toEqual({ amount: 1.99, currency: 'EUR' })
+  })
 })
