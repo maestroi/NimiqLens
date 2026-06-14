@@ -38,4 +38,10 @@ describe('ScanView', () => {
     const wrapper = mount(ScanView, { global: { stubs } })
     expect(wrapper.text()).toContain('Enter price manually')
   })
+
+  it('lets the user choose the currency used for bare scanned prices', () => {
+    const wrapper = mount(ScanView, { global: { stubs } })
+    expect(wrapper.text()).toContain('Scan currency')
+    expect(wrapper.find('select').exists()).toBe(true)
+  })
 })

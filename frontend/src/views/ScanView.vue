@@ -57,7 +57,7 @@ async function scan() {
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
 
     const text = await recognizeText(canvas)
-    const price = detectPrice(text)
+    const price = detectPrice(text, editCurrency.value)
     if (price) {
       detected.value = true
       editAmount.value = price.amount
@@ -99,6 +99,13 @@ onUnmounted(() => {
     <p class="text-sm text-slate-400">
       Frames are processed entirely on your device — nothing is uploaded or stored.
     </p>
+
+    <label class="flex items-center justify-between gap-3 rounded-lg bg-slate-800 p-3">
+      <span class="text-sm text-slate-300">Scan currency</span>
+      <select v-model="editCurrency" class="min-h-[44px] rounded-lg bg-slate-900 px-3 text-lg">
+        <option v-for="c in FIAT_CURRENCIES" :key="c" :value="c">{{ c }}</option>
+      </select>
+    </label>
 
     <div v-if="!cameraSupported" class="rounded-lg bg-slate-800 p-4 text-slate-300">
       <template v-if="insecureContext">

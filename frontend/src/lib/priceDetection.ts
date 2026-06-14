@@ -33,6 +33,12 @@ const PATTERNS: PricePattern[] = [
     currency: (m) => m[2].toUpperCase() as FiatCurrency,
     amount: (m) => m[1],
   },
+  // EUR 12.99 / USD 24.50 / GBP 9.99
+  {
+    regex: new RegExp(`(EUR|USD|GBP)\\s?(${NUMBER})`, 'i'),
+    currency: (m) => m[1].toUpperCase() as FiatCurrency,
+    amount: (m) => m[2],
+  },
   // CHF 12.99, Fr. 9.50, Fr 9.50
   {
     regex: new RegExp(`(?:CHF|Fr\\.?)\\s?(${NUMBER})`, 'i'),
@@ -68,9 +74,11 @@ function parseAmount(raw: string): number {
  * Scans OCR'd text for a price-like pattern (symbol-prefixed, code-suffixed, or
  * CHF/Fr.-prefixed) and returns the first match found, or null if none.
  */
-export function detectPrice(text: string): DetectedPrice | null {
+export function detectPrice(text: string, fallbackCurrency?: FiatCurrency): DetectedPrice | null {
+  const normalizedText = text.replace(/(\d)\s*([.,])\s*(\d)/g, '$1$2$3')
+
   for (const pattern of PATTERNS) {
-    const match = text.match(pattern.regex)
+    const match = normalizedText.match(pattern.regex)
     if (!match) continue
 
     const amount = parseAmount(pattern.amount(match))
@@ -78,5 +86,13 @@ export function detectPrice(text: string): DetectedPrice | null {
 
     return { amount, currency: pattern.currency(match) }
   }
+
+  if (fallbackCurrency) {
+    const bareDecimal = normalizedText.match(/\b(\d+[.,]\d{2})\b/)
+    if (bareDecimal) {
+      return { amount: parseAmount(bareDecimal[1]), currency: fallbackCurrency }
+    }
+  }
+
   return null
 }

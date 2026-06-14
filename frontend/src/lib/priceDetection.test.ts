@@ -38,6 +38,18 @@ describe('detectPrice', () => {
     expect(detectPrice('Total\n€12.99\nThank you')).toEqual({ amount: 12.99, currency: 'EUR' })
   })
 
+  it('detects a price when OCR inserts spaces around the decimal separator', () => {
+    expect(detectPrice('TOTAL € 12, 99')).toEqual({ amount: 12.99, currency: 'EUR' })
+  })
+
+  it('detects a price when the currency code appears before the amount', () => {
+    expect(detectPrice('TOTAL EUR 12,99')).toEqual({ amount: 12.99, currency: 'EUR' })
+  })
+
+  it('detects a bare decimal price when a scan currency is supplied', () => {
+    expect(detectPrice('SPECIAL OFFER 12.99', 'EUR')).toEqual({ amount: 12.99, currency: 'EUR' })
+  })
+
   it('returns null when no price-like pattern is found', () => {
     expect(detectPrice('Open 9am - 5pm')).toBeNull()
   })

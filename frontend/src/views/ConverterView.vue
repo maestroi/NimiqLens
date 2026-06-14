@@ -46,6 +46,12 @@ const affordabilityResult = computed(() => {
   return affordability(walletStore.spendableBalanceNim ?? walletStore.balanceNim, nimAmountNeeded.value)
 })
 
+const spendableBalance = computed(() => walletStore.spendableBalanceNim ?? walletStore.balanceNim)
+
+function formatNim(amount: number): string {
+  return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
 function relativeTime(iso: string): string {
   const seconds = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000))
   if (seconds < 60) return `${seconds}s`
@@ -101,8 +107,17 @@ function relativeTime(iso: string): string {
         You can afford this with your NIM balance
       </div>
       <div v-else class="text-amber-400 font-medium">
-        You need ≈ {{ affordabilityResult.deficit.toFixed(2) }} more NIM
+        You need ≈ {{ formatNim(affordabilityResult.deficit) }} more NIM
       </div>
+      <p v-if="nimAmountNeeded !== null" class="mt-2 text-sm text-slate-300">
+        Price requires ≈ {{ formatNim(nimAmountNeeded) }} NIM
+      </p>
+      <p v-if="spendableBalance !== null" class="mt-1 text-sm text-slate-300">
+        You have {{ formatNim(spendableBalance) }} spendable NIM
+      </p>
+      <p v-if="walletStore.lockedBalanceNim" class="mt-1 text-sm text-slate-400">
+        {{ formatNim(walletStore.lockedBalanceNim) }} NIM is locked and cannot currently be spent
+      </p>
     </div>
     <div
       v-else-if="walletStore.address && walletStore.balanceError"
