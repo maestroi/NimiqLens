@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { useScanStore } from '../stores/scan'
 import { usePreferencesStore } from '../stores/preferences'
 import { detectPrice, type DetectedPrice } from '../lib/priceDetection'
-import { prepareOcrWorker, recognizeText, terminateOcrWorker, MIN_OCR_CONFIDENCE } from '../lib/ocr'
+import { prepareOcrWorker, recognizeText, terminateOcrWorker, maxDigitWordConfidence, MIN_OCR_CONFIDENCE } from '../lib/ocr'
 import { captureAndPreprocessTarget, TARGET_HEIGHT_RATIO, TARGET_WIDTH_RATIO } from '../lib/scanImage'
 import { createPriceCandidateTracker } from '../lib/priceCandidate'
 import { FIAT_CURRENCIES, type FiatCurrency } from '../lib/convert'
@@ -120,8 +120,8 @@ async function recognizePriceFromFrame(): Promise<DetectedPrice | null> {
 
   const variants = captureAndPreprocessTarget(videoRef.value, canvasRef.value)
   for (const variant of variants) {
-    const { text, confidence } = await recognizeText(variant)
-    if (confidence < MIN_OCR_CONFIDENCE) continue
+    const { text, words } = await recognizeText(variant)
+    if (maxDigitWordConfidence(words) < MIN_OCR_CONFIDENCE) continue
     const price = detectPrice(text, editCurrency.value)
     if (price) return price
   }

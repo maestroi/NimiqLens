@@ -2,7 +2,28 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const createWorker = vi.fn(async () => ({
   setParameters: vi.fn(async () => ({})),
-  recognize: vi.fn(async () => ({ data: { text: '€12.99', confidence: 90 } })),
+  recognize: vi.fn(async () => ({
+    data: {
+      text: '€12.99',
+      confidence: 90,
+      blocks: [
+        {
+          paragraphs: [
+            {
+              lines: [
+                {
+                  words: [
+                    { text: '€', confidence: 70 },
+                    { text: '12.99', confidence: 95 },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  })),
   terminate: vi.fn(async () => ({})),
 }))
 
@@ -10,7 +31,13 @@ vi.mock('tesseract.js', () => ({
   createWorker,
 }))
 
-import { prepareOcrWorker, recognizeText, terminateOcrWorker, PRICE_CHAR_WHITELIST } from './ocr'
+import {
+  prepareOcrWorker,
+  recognizeText,
+  terminateOcrWorker,
+  maxDigitWordConfidence,
+  PRICE_CHAR_WHITELIST,
+} from './ocr'
 
 describe('ocr worker', () => {
   beforeEach(async () => {
@@ -27,12 +54,27 @@ describe('ocr worker', () => {
     expect(createWorker).toHaveBeenCalledTimes(1)
   })
 
-  it('returns the recognized text alongside the OCR confidence', async () => {
+  it('returns the recognized text, page confidence, and per-word results', async () => {
     const canvas = document.createElement('canvas')
 
     const result = await recognizeText(canvas)
 
-    expect(result).toEqual({ text: '€12.99', confidence: 90 })
+    expect(result).toEqual({
+      text: '€12.99',
+      confidence: 90,
+      words: [
+        { text: '€', confidence: 70 },
+        { text: '12.99', confidence: 95 },
+      ],
+    })
+  })
+
+  it('requests block-level output so word confidences are available', async () => {
+    const canvas = document.createElement('canvas')
+    await recognizeText(canvas)
+
+    const worker = await createWorker.mock.results[0].value
+    expect(worker.recognize).toHaveBeenCalledWith(canvas, {}, { blocks: true })
   })
 
   it('configures price-related characters on the worker', async () => {
@@ -60,12 +102,46 @@ describe('ocr worker', () => {
     expect(createWorker).toHaveBeenCalledTimes(1)
   })
 
+  it('maxDigitWordConfidence ignores words without digits when scoring confidence', () => {
+    expect(
+      maxDigitWordConfidence([
+        { text: 'kalkoenfiletreepjes', confidence: 20 },
+        { text: '1.54', confidence: 92 },
+      ]),
+    ).toBe(92)
+  })
+
+  it('maxDigitWordConfidence returns 0 when no word contains a digit', () => {
+    expect(maxDigitWordConfidence([{ text: 'KORTING', confidence: 85 }])).toBe(0)
+  })
+
   it('retries worker creation after initialization fails', async () => {
     createWorker
       .mockRejectedValueOnce(new Error('worker failed'))
       .mockResolvedValueOnce({
         setParameters: vi.fn(async () => ({})),
-        recognize: vi.fn(async () => ({ data: { text: '€12.99', confidence: 90 } })),
+        recognize: vi.fn(async () => ({
+          data: {
+            text: '€12.99',
+            confidence: 90,
+            blocks: [
+              {
+                paragraphs: [
+                  {
+                    lines: [
+                      {
+                        words: [
+                          { text: '€', confidence: 70 },
+                          { text: '12.99', confidence: 95 },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        })),
         terminate: vi.fn(async () => ({})),
       })
 

@@ -1,4 +1,7 @@
-import type { Worker } from 'tesseract.js'
+import type Tesseract from 'tesseract.js'
+
+type Worker = Tesseract.Worker
+type Page = Tesseract.Page
 
 /**
  * Characters commonly found in price labels for OCR whitelisting. Includes digits,
@@ -8,12 +11,49 @@ import type { Worker } from 'tesseract.js'
  */
 export const PRICE_CHAR_WHITELIST = '0123456789.,-€$£¥₹ABCDEFGHIJLNPRSUYr '
 
-/** Minimum mean confidence (0-100) for an OCR result to be trusted as a price reading. */
+/** Minimum confidence (0-100) for the digits making up a price to be trusted. */
 export const MIN_OCR_CONFIDENCE = 60
+
+export interface OcrWord {
+  text: string
+  confidence: number
+}
 
 export interface OcrResult {
   text: string
   confidence: number
+  /** Individually recognized words with their own confidence scores. */
+  words: OcrWord[]
+}
+
+/**
+ * Returns the highest confidence among recognized words that contain at least one
+ * digit. Price labels are often surrounded by unrelated text (product names,
+ * discount badges, dates) that drags down the overall page confidence even when the
+ * price itself was read cleanly — so the digits' own confidence is a better signal.
+ */
+export function maxDigitWordConfidence(words: OcrWord[]): number {
+  let max = 0
+  for (const word of words) {
+    if (/\d/.test(word.text)) {
+      max = Math.max(max, word.confidence)
+    }
+  }
+  return max
+}
+
+function flattenWords(page: Page): OcrWord[] {
+  const words: OcrWord[] = []
+  for (const block of page.blocks ?? []) {
+    for (const paragraph of block.paragraphs ?? []) {
+      for (const line of paragraph.lines ?? []) {
+        for (const word of line.words ?? []) {
+          words.push({ text: word.text, confidence: word.confidence })
+        }
+      }
+    }
+  }
+  return words
 }
 
 let workerPromise: Promise<Worker> | null = null
@@ -49,8 +89,12 @@ export async function prepareOcrWorker(): Promise<void> {
  */
 export async function recognizeText(image: HTMLCanvasElement): Promise<OcrResult> {
   const worker = await getWorker()
-  const result = await worker.recognize(image)
-  return { text: result.data.text, confidence: result.data.confidence }
+  const result = await worker.recognize(image, {}, { blocks: true })
+  return {
+    text: result.data.text,
+    confidence: result.data.confidence,
+    words: flattenWords(result.data),
+  }
 }
 
 /** Releases the shared OCR worker. Safe to call when no worker is active. */

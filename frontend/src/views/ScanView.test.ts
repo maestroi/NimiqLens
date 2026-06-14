@@ -10,13 +10,15 @@ const mocks = vi.hoisted(() => ({
   captureAndPreprocessTarget: vi.fn(() => [document.createElement('canvas')]),
 }))
 
-vi.mock('../lib/ocr', () => ({
-  recognizeText: mocks.recognizeText,
-  prepareOcrWorker: mocks.prepareOcrWorker,
-  terminateOcrWorker: mocks.terminateOcrWorker,
-  PRICE_CHAR_WHITELIST: '0123456789.,-€$£¥₹ABCDEFGHIJLNPRSUYr ',
-  MIN_OCR_CONFIDENCE: 60,
-}))
+vi.mock('../lib/ocr', async () => {
+  const actual = await vi.importActual<typeof import('../lib/ocr')>('../lib/ocr')
+  return {
+    ...actual,
+    recognizeText: mocks.recognizeText,
+    prepareOcrWorker: mocks.prepareOcrWorker,
+    terminateOcrWorker: mocks.terminateOcrWorker,
+  }
+})
 
 vi.mock('../lib/scanImage', async () => {
   const actual = await vi.importActual<typeof import('../lib/scanImage')>('../lib/scanImage')
@@ -106,7 +108,7 @@ describe('ScanView', () => {
   })
 
   it('automatically scans on a recurring interval', async () => {
-    mocks.recognizeText.mockResolvedValue({ text: 'no price here', confidence: 80 })
+    mocks.recognizeText.mockResolvedValue({ text: 'no price here', confidence: 80, words: [] })
     await mountWithCamera()
 
     await vi.advanceTimersByTimeAsync(1500)
@@ -117,7 +119,11 @@ describe('ScanView', () => {
   })
 
   it('accepts a price after two consecutive stable scans', async () => {
-    mocks.recognizeText.mockResolvedValue({ text: '€12.99', confidence: 80 })
+    mocks.recognizeText.mockResolvedValue({
+      text: '€12.99',
+      confidence: 80,
+      words: [{ text: '12.99', confidence: 80 }],
+    })
     const wrapper = await mountWithCamera()
 
     await vi.advanceTimersByTimeAsync(1500)
@@ -130,8 +136,34 @@ describe('ScanView', () => {
     expect(wrapper.text()).toContain('Detected: 12.99 EUR')
   })
 
+  it('accepts a price even when surrounding shelf-label text drags down the page confidence', async () => {
+    mocks.recognizeText.mockResolvedValue({
+      text: 'AH KALKOENFILETREEPJES\n1.54\nPER KG\n40% KORTING',
+      confidence: 35,
+      words: [
+        { text: 'AH', confidence: 20 },
+        { text: 'KALKOENFILETREEPJES', confidence: 18 },
+        { text: '1.54', confidence: 92 },
+        { text: 'PER', confidence: 25 },
+        { text: 'KG', confidence: 30 },
+        { text: '40%', confidence: 22 },
+        { text: 'KORTING', confidence: 19 },
+      ],
+    })
+    const wrapper = await mountWithCamera()
+
+    await wrapper.get('[data-testid="scan-now"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Detected: 1.54 EUR')
+  })
+
   it('asks the user to move closer when OCR confidence is too low to trust', async () => {
-    mocks.recognizeText.mockResolvedValue({ text: '€12.99', confidence: 40 })
+    mocks.recognizeText.mockResolvedValue({
+      text: '€12.99',
+      confidence: 40,
+      words: [{ text: '12.99', confidence: 40 }],
+    })
     const wrapper = await mountWithCamera()
 
     await wrapper.get('[data-testid="scan-now"]').trigger('click')
@@ -142,13 +174,17 @@ describe('ScanView', () => {
   })
 
   it('resumes automatic scanning after retry', async () => {
-    mocks.recognizeText.mockResolvedValue({ text: '€12.99', confidence: 80 })
+    mocks.recognizeText.mockResolvedValue({
+      text: '€12.99',
+      confidence: 80,
+      words: [{ text: '12.99', confidence: 80 }],
+    })
     const wrapper = await mountWithCamera()
 
     await vi.advanceTimersByTimeAsync(3000)
     await flushPromises()
     mocks.captureAndPreprocessTarget.mockClear()
-    mocks.recognizeText.mockResolvedValue({ text: 'no price here', confidence: 80 })
+    mocks.recognizeText.mockResolvedValue({ text: 'no price here', confidence: 80, words: [] })
 
     await wrapper.get('[data-testid="retry"]').trigger('click')
     await vi.advanceTimersByTimeAsync(1500)
@@ -160,7 +196,11 @@ describe('ScanView', () => {
   })
 
   it('supports manual scan now as a fallback', async () => {
-    mocks.recognizeText.mockResolvedValue({ text: '€24.50', confidence: 80 })
+    mocks.recognizeText.mockResolvedValue({
+      text: '€24.50',
+      confidence: 80,
+      words: [{ text: '24.50', confidence: 80 }],
+    })
     const wrapper = await mountWithCamera()
 
     await wrapper.get('[data-testid="scan-now"]').trigger('click')
@@ -170,7 +210,7 @@ describe('ScanView', () => {
   })
 
   it('pauses automatic scanning while the page is hidden', async () => {
-    mocks.recognizeText.mockResolvedValue({ text: 'no price here', confidence: 80 })
+    mocks.recognizeText.mockResolvedValue({ text: 'no price here', confidence: 80, words: [] })
     await mountWithCamera()
 
     Object.defineProperty(document, 'hidden', { configurable: true, value: true })
