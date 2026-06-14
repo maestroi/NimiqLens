@@ -46,15 +46,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # VITE_API_BASE_URL is read from a repo variable (Settings > Secrets and
-      # variables > Actions > Variables) so the real backend URL doesn't need
-      # to live in this file. Leave it unset for a relative/same-origin build.
+      # Keep a production-safe default: an empty value makes the SPA request
+      # /api from the frontend nginx host, which only serves index.html.
       - uses: docker/build-push-action@v6
         with:
           context: ./frontend
           push: true
           build-args: |
-            VITE_API_BASE_URL=${{ vars.VITE_API_BASE_URL }}
+            VITE_API_BASE_URL=${{ vars.VITE_API_BASE_URL || 'https://api-nimiqlens.maestroi.cc' }}
           tags: |
             ghcr.io/${{ github.repository_owner }}/nimlens-frontend:latest
             ghcr.io/${{ github.repository_owner }}/nimlens-frontend:${{ github.sha }}
