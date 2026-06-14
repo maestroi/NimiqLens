@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useWalletStore } from '../stores/wallet'
+import { usePreferencesStore } from '../stores/preferences'
+import { FIAT_CURRENCIES, type FiatCurrency } from '../lib/convert'
 import IconHexagon from '../components/icons/IconHexagon.vue'
 import IconGift from '../components/icons/IconGift.vue'
 import IconCheck from '../components/icons/IconCheck.vue'
@@ -7,6 +10,12 @@ import IconAlert from '../components/icons/IconAlert.vue'
 import IconTrash from '../components/icons/IconTrash.vue'
 
 const walletStore = useWalletStore()
+const preferencesStore = usePreferencesStore()
+
+const fiatCurrency = computed<FiatCurrency>({
+  get: () => preferencesStore.fiatCurrency,
+  set: (value) => preferencesStore.setFiatCurrency(value),
+})
 </script>
 
 <template>
@@ -19,6 +28,17 @@ const walletStore = useWalletStore()
       NimLens converts real-world fiat prices into NIM, USDT, BTC, and ETH so you can quickly
       see what something is worth in crypto.
     </p>
+
+    <h2 class="text-lg font-semibold text-nimiq-blue-light">Preferences</h2>
+    <label class="flex items-center justify-between gap-3 rounded-lg bg-nimiq-card border border-nimiq-border p-3">
+      <span class="text-sm text-nimiq-muted">Default currency</span>
+      <select
+        v-model="fiatCurrency"
+        class="min-h-[44px] rounded-lg bg-nimiq-card-elevated px-3 text-lg cursor-pointer focus:outline-2 focus:outline-nimiq-blue-light"
+      >
+        <option v-for="c in FIAT_CURRENCIES" :key="c" :value="c">{{ c }}</option>
+      </select>
+    </label>
 
     <h2 class="text-lg font-semibold text-nimiq-blue-light">Nimiq Pay integration</h2>
     <p class="text-nimiq-muted">

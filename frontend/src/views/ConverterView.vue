@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRatesStore } from '../stores/rates'
 import { useWalletStore } from '../stores/wallet'
 import { useScanStore } from '../stores/scan'
+import { usePreferencesStore } from '../stores/preferences'
 import { ASSETS, FIAT_CURRENCIES, computeAssetAmount, formatAssetAmount, type Asset, type FiatCurrency } from '../lib/convert'
 import { affordability } from '../lib/affordability'
 import AssetIcon from '../components/icons/AssetIcon.vue'
@@ -13,9 +14,10 @@ import IconLock from '../components/icons/IconLock.vue'
 const ratesStore = useRatesStore()
 const walletStore = useWalletStore()
 const scanStore = useScanStore()
+const preferencesStore = usePreferencesStore()
 
 const price = ref<number | null>(null)
-const currency = ref<FiatCurrency>('EUR')
+const currency = ref<FiatCurrency>(preferencesStore.fiatCurrency)
 
 onMounted(() => {
   if (!ratesStore.rates) ratesStore.load()

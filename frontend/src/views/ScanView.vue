@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useScanStore } from '../stores/scan'
+import { usePreferencesStore } from '../stores/preferences'
 import { detectPrice, type DetectedPrice } from '../lib/priceDetection'
 import { prepareOcrWorker, recognizeText, terminateOcrWorker } from '../lib/ocr'
 import { captureAndPreprocessTarget, TARGET_HEIGHT_RATIO, TARGET_WIDTH_RATIO } from '../lib/scanImage'
@@ -16,6 +17,7 @@ const SCAN_INTERVAL_MS = 1500
 
 const router = useRouter()
 const scanStore = useScanStore()
+const preferencesStore = usePreferencesStore()
 const priceTracker = createPriceCandidateTracker()
 
 const cameraSupported = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia
@@ -31,7 +33,7 @@ const ocrReady = ref(false)
 const noPriceFound = ref(false)
 const detected = ref(false)
 const editAmount = ref<number | null>(null)
-const editCurrency = ref<FiatCurrency>('EUR')
+const editCurrency = ref<FiatCurrency>(preferencesStore.fiatCurrency)
 const guidance = ref<'searching' | 'hold-steady' | 'move-closer'>('searching')
 
 let autoScanActive = false

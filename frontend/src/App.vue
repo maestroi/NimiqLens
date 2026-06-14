@@ -1,17 +1,27 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useWalletStore } from './stores/wallet'
+import { usePreferencesStore } from './stores/preferences'
 import IconHexagonOutline from './components/icons/IconHexagonOutline.vue'
 import IconExchange from './components/icons/IconExchange.vue'
 import IconQr from './components/icons/IconQr.vue'
 import IconChart from './components/icons/IconChart.vue'
 import IconInfo from './components/icons/IconInfo.vue'
 
+const route = useRoute()
+const router = useRouter()
 const walletStore = useWalletStore()
+const preferencesStore = usePreferencesStore()
 
-onMounted(() => {
-  walletStore.init()
+onMounted(async () => {
+  await walletStore.init()
+  if (!preferencesStore.onboardingComplete && route.name !== 'onboarding') {
+    router.replace('/onboarding')
+  }
 })
+
+const showNav = computed(() => route.name !== 'onboarding')
 
 const navItems = [
   { to: '/', label: 'Home', icon: IconHexagonOutline },
@@ -26,6 +36,7 @@ const navItems = [
   <div class="min-h-screen bg-nimiq-darkerblue text-white">
     <router-view />
     <nav
+      v-if="showNav"
       class="fixed inset-x-4 bottom-4 flex rounded-2xl border border-white/10 bg-nimiq-card/90 backdrop-blur-lg shadow-lg shadow-black/30"
     >
       <router-link
