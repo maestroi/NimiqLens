@@ -80,7 +80,10 @@ function parseAmount(raw: string): number {
  * CHF/Fr.-prefixed) and returns the first match found, or null if none.
  */
 export function detectPrice(text: string, fallbackCurrency?: FiatCurrency): DetectedPrice | null {
-  const normalizedText = text.replace(/(\d)\s*([.,])\s*(\d)/g, '$1$2$3')
+  const normalizedText = text
+    .replace(/(\d)\s*([.,])\s*(\d)/g, '$1$2$3')
+    // "X,-" / "X.-" is a common price-tag shorthand for a whole amount (e.g. "10,-" = 10.00).
+    .replace(/(\d+)\s*[.,]\s*-+/g, '$1,00')
 
   for (const pattern of PATTERNS) {
     const match = normalizedText.match(pattern.regex)

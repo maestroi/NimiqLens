@@ -1,7 +1,20 @@
 import type { Worker } from 'tesseract.js'
 
-/** Characters commonly found in price labels for OCR whitelisting. */
-export const PRICE_CHAR_WHITELIST = '0123456789.,€$£FrCH USDGBP'
+/**
+ * Characters commonly found in price labels for OCR whitelisting. Includes digits,
+ * decimal/thousands separators, the "X,-" / "X.-" whole-amount dash notation, the
+ * supported currency symbols, and every letter needed to spell out a supported
+ * currency code (EUR, USD, GBP, CHF, JPY, CNY, AUD, CAD, INR, BRL) or "Fr.".
+ */
+export const PRICE_CHAR_WHITELIST = '0123456789.,-€$£¥₹ABCDEFGHIJLNPRSUYr '
+
+/** Minimum mean confidence (0-100) for an OCR result to be trusted as a price reading. */
+export const MIN_OCR_CONFIDENCE = 60
+
+export interface OcrResult {
+  text: string
+  confidence: number
+}
 
 let workerPromise: Promise<Worker> | null = null
 
@@ -34,10 +47,10 @@ export async function prepareOcrWorker(): Promise<void> {
  * (and its WASM payload) is dynamically imported so it is only downloaded when
  * scanning starts.
  */
-export async function recognizeText(image: HTMLCanvasElement): Promise<string> {
+export async function recognizeText(image: HTMLCanvasElement): Promise<OcrResult> {
   const worker = await getWorker()
   const result = await worker.recognize(image)
-  return result.data.text
+  return { text: result.data.text, confidence: result.data.confidence }
 }
 
 /** Releases the shared OCR worker. Safe to call when no worker is active. */

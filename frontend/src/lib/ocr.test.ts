@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const createWorker = vi.fn(async () => ({
   setParameters: vi.fn(async () => ({})),
-  recognize: vi.fn(async () => ({ data: { text: '€12.99' } })),
+  recognize: vi.fn(async () => ({ data: { text: '€12.99', confidence: 90 } })),
   terminate: vi.fn(async () => ({})),
 }))
 
@@ -25,6 +25,14 @@ describe('ocr worker', () => {
     await recognizeText(canvas)
 
     expect(createWorker).toHaveBeenCalledTimes(1)
+  })
+
+  it('returns the recognized text alongside the OCR confidence', async () => {
+    const canvas = document.createElement('canvas')
+
+    const result = await recognizeText(canvas)
+
+    expect(result).toEqual({ text: '€12.99', confidence: 90 })
   })
 
   it('configures price-related characters on the worker', async () => {
@@ -57,7 +65,7 @@ describe('ocr worker', () => {
       .mockRejectedValueOnce(new Error('worker failed'))
       .mockResolvedValueOnce({
         setParameters: vi.fn(async () => ({})),
-        recognize: vi.fn(async () => ({ data: { text: '€12.99' } })),
+        recognize: vi.fn(async () => ({ data: { text: '€12.99', confidence: 90 } })),
         terminate: vi.fn(async () => ({})),
       })
 

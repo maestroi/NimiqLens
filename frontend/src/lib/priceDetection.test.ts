@@ -53,4 +53,28 @@ describe('detectPrice', () => {
   it('returns null when no price-like pattern is found', () => {
     expect(detectPrice('Open 9am - 5pm')).toBeNull()
   })
+
+  it('detects a euro price using the "X,-" whole-amount price-tag notation', () => {
+    expect(detectPrice('€10,-')).toEqual({ amount: 10, currency: 'EUR' })
+  })
+
+  it('detects a whole-amount price with a EUR code suffix using "X,-" notation', () => {
+    expect(detectPrice('10,- EUR')).toEqual({ amount: 10, currency: 'EUR' })
+  })
+
+  it('detects a Swiss franc whole-amount price using "X.-" notation', () => {
+    expect(detectPrice('Fr. 5.-')).toEqual({ amount: 5, currency: 'CHF' })
+  })
+
+  it('detects a bare whole-amount price with "X,-" notation when a scan currency is supplied', () => {
+    expect(detectPrice('12,-', 'EUR')).toEqual({ amount: 12, currency: 'EUR' })
+  })
+
+  it('detects a yen price with the ¥ symbol', () => {
+    expect(detectPrice('¥1500')).toEqual({ amount: 1500, currency: 'JPY' })
+  })
+
+  it('detects a rupee price with the ₹ symbol', () => {
+    expect(detectPrice('₹999')).toEqual({ amount: 999, currency: 'INR' })
+  })
 })
