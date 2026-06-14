@@ -1,0 +1,129 @@
+/** Width of the centered target box as a fraction of the video frame. */
+export const TARGET_WIDTH_RATIO = 0.75
+
+/** Height of the centered target box as a fraction of the video frame. */
+export const TARGET_HEIGHT_RATIO = 0.35
+
+/** Upscale factor applied before OCR preprocessing. */
+export const PREPROCESS_SCALE = 2
+
+export interface CropRect {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+export function getTargetCropRect(sourceWidth: number, sourceHeight: number): CropRect {
+  const width = Math.round(sourceWidth * TARGET_WIDTH_RATIO)
+  const height = Math.round(sourceHeight * TARGET_HEIGHT_RATIO)
+  return {
+    x: Math.round((sourceWidth - width) / 2),
+    y: Math.round((sourceHeight - height) / 2),
+    width,
+    height,
+  }
+}
+
+function toGrayscale(r: number, g: number, b: number): number {
+  return Math.round(0.299 * r + 0.587 * g + 0.114 * b)
+}
+
+export function preprocessPixels(
+  source: Uint8ClampedArray,
+  mode: 'grayscale' | 'threshold',
+  threshold = 128,
+): Uint8ClampedArray {
+  const output = new Uint8ClampedArray(source.length)
+  for (let i = 0; i < source.length; i += 4) {
+    const gray = toGrayscale(source[i], source[i + 1], source[i + 2])
+    const value = mode === 'threshold' ? (gray >= threshold ? 255 : 0) : gray
+    output[i] = value
+    output[i + 1] = value
+    output[i + 2] = value
+    output[i + 3] = 255
+  }
+  return output
+}
+
+function createVariantCanvas(
+  source: ImageData,
+  width: number,
+  height: number,
+  mode: 'grayscale' | 'threshold',
+  threshold?: number,
+): HTMLCanvasElement {
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return canvas
+
+  const output = ctx.createImageData(width, height)
+  output.data.set(preprocessPixels(source.data, mode, threshold))
+  ctx.putImageData(output, 0, 0)
+  return canvas
+}
+
+/**
+ * Upscales a cropped region and returns high-contrast grayscale/threshold variants
+ * for OCR.
+ */
+export function preprocessTargetRegion(
+  cropped: HTMLCanvasElement,
+  scale = PREPROCESS_SCALE,
+): HTMLCanvasElement[] {
+  const scaled = document.createElement('canvas')
+  scaled.width = cropped.width * scale
+  scaled.height = cropped.height * scale
+  const scaledCtx = scaled.getContext('2d')
+  if (!scaledCtx) return [scaled]
+
+  scaledCtx.imageSmoothingEnabled = false
+  scaledCtx.drawImage(cropped, 0, 0, scaled.width, scaled.height)
+
+  const imageData = scaledCtx.getImageData(0, 0, scaled.width, scaled.height)
+  return [
+    createVariantCanvas(imageData, scaled.width, scaled.height, 'grayscale'),
+    createVariantCanvas(imageData, scaled.width, scaled.height, 'threshold', 128),
+    createVariantCanvas(imageData, scaled.width, scaled.height, 'threshold', 160),
+  ]
+}
+
+/**
+ * Captures the centered target region from a live video frame and returns
+ * preprocessed OCR variants.
+ */
+export function captureAndPreprocessTarget(
+  video: HTMLVideoElement,
+  workCanvas: HTMLCanvasElement,
+): HTMLCanvasElement[] {
+  workCanvas.width = video.videoWidth
+  workCanvas.height = video.videoHeight
+
+  const ctx = workCanvas.getContext('2d')
+  if (!ctx) return []
+
+  ctx.drawImage(video, 0, 0, workCanvas.width, workCanvas.height)
+  const rect = getTargetCropRect(workCanvas.width, workCanvas.height)
+
+  const cropped = document.createElement('canvas')
+  cropped.width = rect.width
+  cropped.height = rect.height
+  const croppedCtx = cropped.getContext('2d')
+  if (!croppedCtx) return []
+
+  croppedCtx.drawImage(
+    workCanvas,
+    rect.x,
+    rect.y,
+    rect.width,
+    rect.height,
+    0,
+    0,
+    rect.width,
+    rect.height,
+  )
+
+  return preprocessTargetRegion(cropped)
+}

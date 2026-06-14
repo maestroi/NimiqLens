@@ -1,17 +1,22 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useScanStore } from '../stores/scan'
-import { detectPrice } from '../lib/priceDetection'
-import { recognizeText } from '../lib/ocr'
+import { detectPrice, type DetectedPrice } from '../lib/priceDetection'
+import { prepareOcrWorker, recognizeText, terminateOcrWorker } from '../lib/ocr'
+import { captureAndPreprocessTarget, TARGET_HEIGHT_RATIO, TARGET_WIDTH_RATIO } from '../lib/scanImage'
+import { createPriceCandidateTracker } from '../lib/priceCandidate'
 import { FIAT_CURRENCIES, type FiatCurrency } from '../lib/convert'
 import IconCamera from '../components/icons/IconCamera.vue'
 import IconExchange from '../components/icons/IconExchange.vue'
 import IconAlert from '../components/icons/IconAlert.vue'
 import IconCheck from '../components/icons/IconCheck.vue'
 
+const SCAN_INTERVAL_MS = 1500
+
 const router = useRouter()
 const scanStore = useScanStore()
+const priceTracker = createPriceCandidateTracker()
 
 const cameraSupported = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia
 const insecureContext = typeof globalThis !== 'undefined' && globalThis.isSecureContext === false
@@ -20,12 +25,47 @@ const videoRef = ref<HTMLVideoElement | null>(null)
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 const stream = ref<MediaStream | null>(null)
 const cameraError = ref<string | null>(null)
+const scannerError = ref<string | null>(null)
 const scanning = ref(false)
 const ocrReady = ref(false)
 const noPriceFound = ref(false)
 const detected = ref(false)
 const editAmount = ref<number | null>(null)
 const editCurrency = ref<FiatCurrency>('EUR')
+const guidance = ref<'searching' | 'hold-steady' | 'move-closer'>('searching')
+
+let autoScanActive = false
+let scanTimer: ReturnType<typeof setTimeout> | null = null
+let scanInFlight = false
+
+async function ensureOcrReady(): Promise<boolean> {
+  scannerError.value = null
+  try {
+    await prepareOcrWorker()
+    ocrReady.value = true
+    return true
+  } catch (error) {
+    ocrReady.value = false
+    scannerError.value = `Scanner unavailable: ${error instanceof Error ? error.message : String(error)}`
+    return false
+  }
+}
+
+const guidanceText = computed(() => {
+  switch (guidance.value) {
+    case 'hold-steady':
+      return 'Hold steady…'
+    case 'move-closer':
+      return 'Move closer to the price'
+    default:
+      return 'Point the price at the box'
+  }
+})
+
+const targetOverlayStyle = {
+  width: `${TARGET_WIDTH_RATIO * 100}%`,
+  height: `${TARGET_HEIGHT_RATIO * 100}%`,
+}
 
 async function startCamera() {
   cameraError.value = null
@@ -35,48 +75,121 @@ async function startCamera() {
       videoRef.value.srcObject = stream.value
       await videoRef.value.play()
     }
+    if (!ocrReady.value) {
+      await ensureOcrReady()
+    }
+    if (ocrReady.value && !detected.value) {
+      startAutoScan()
+    }
   } catch (e) {
     cameraError.value = e instanceof Error ? e.message : String(e)
   }
 }
 
 function stopCamera() {
+  stopAutoScan()
   stream.value?.getTracks().forEach((track) => track.stop())
   stream.value = null
 }
 
-async function scan() {
-  if (!videoRef.value || !canvasRef.value) return
+function stopAutoScan() {
+  autoScanActive = false
+  if (scanTimer) {
+    clearTimeout(scanTimer)
+    scanTimer = null
+  }
+}
 
+function scheduleNextScan() {
+  if (!autoScanActive || detected.value) return
+  scanTimer = setTimeout(() => {
+    void runScanCycle()
+  }, SCAN_INTERVAL_MS)
+}
+
+function startAutoScan() {
+  if (autoScanActive || detected.value || !stream.value || !ocrReady.value) return
+  autoScanActive = true
+  scheduleNextScan()
+}
+
+async function recognizePriceFromFrame(): Promise<DetectedPrice | null> {
+  if (!videoRef.value || !canvasRef.value) return null
+
+  const variants = captureAndPreprocessTarget(videoRef.value, canvasRef.value)
+  for (const variant of variants) {
+    const text = await recognizeText(variant)
+    const price = detectPrice(text, editCurrency.value)
+    if (price) return price
+  }
+  return null
+}
+
+async function runScanCycle() {
+  if (!videoRef.value || !canvasRef.value || scanInFlight || detected.value) return
+
+  scanInFlight = true
   scanning.value = true
   noPriceFound.value = false
+
   try {
-    const video = videoRef.value
-    const canvas = canvasRef.value
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
+    const price = await recognizePriceFromFrame()
+    const stable = priceTracker.observe(price)
 
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+    if (stable) {
+      detected.value = true
+      editAmount.value = stable.amount
+      editCurrency.value = stable.currency
+      guidance.value = 'searching'
+      stopAutoScan()
+      return
+    }
 
-    const text = await recognizeText(canvas)
-    const price = detectPrice(text, editCurrency.value)
+    guidance.value = price ? 'hold-steady' : 'move-closer'
+  } catch {
+    guidance.value = 'move-closer'
+  } finally {
+    scanInFlight = false
+    scanning.value = false
+    scheduleNextScan()
+  }
+}
+
+async function scanNow() {
+  stopAutoScan()
+  scanning.value = true
+  noPriceFound.value = false
+
+  try {
+    const price = await recognizePriceFromFrame()
     if (price) {
       detected.value = true
       editAmount.value = price.amount
       editCurrency.value = price.currency
-    } else {
-      noPriceFound.value = true
+      priceTracker.reset()
+      guidance.value = 'searching'
+      stopAutoScan()
+      return
     }
+    noPriceFound.value = true
+    guidance.value = 'move-closer'
+  } catch {
+    noPriceFound.value = true
+    guidance.value = 'move-closer'
   } finally {
     scanning.value = false
+    if (!detected.value) {
+      startAutoScan()
+    }
   }
 }
 
 function retry() {
   detected.value = false
   noPriceFound.value = false
+  guidance.value = 'searching'
+  priceTracker.reset()
+  startAutoScan()
 }
 
 function confirm() {
@@ -86,14 +199,32 @@ function confirm() {
   router.push('/convert')
 }
 
+function handleVisibilityChange() {
+  if (document.hidden) {
+    stopAutoScan()
+    return
+  }
+  if (stream.value && ocrReady.value && !detected.value) {
+    startAutoScan()
+  }
+}
+
 onMounted(() => {
-  void import('tesseract.js').then(() => {
-    ocrReady.value = true
+  void ensureOcrReady().then((ready) => {
+    if (ready) {
+    if (stream.value && !detected.value) {
+      startAutoScan()
+    }
+    }
   })
+  document.addEventListener('visibilitychange', handleVisibilityChange)
 })
 
 onUnmounted(() => {
+  stopAutoScan()
   stopCamera()
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+  void terminateOcrWorker()
 })
 </script>
 
@@ -134,8 +265,33 @@ onUnmounted(() => {
         <IconAlert class="h-4 w-4 shrink-0" />
         Camera access failed: {{ cameraError }}
       </div>
+      <div
+        v-if="scannerError"
+        class="flex items-center gap-2 rounded-lg border border-nimiq-red/30 bg-nimiq-red/10 px-3 py-2 text-sm text-nimiq-red-light"
+      >
+        <IconAlert class="h-4 w-4 shrink-0" />
+        {{ scannerError }}
+      </div>
 
-      <video ref="videoRef" class="w-full rounded-xl bg-black aspect-video" muted playsinline></video>
+      <div class="relative">
+        <video ref="videoRef" class="w-full rounded-xl bg-black aspect-video" muted playsinline></video>
+        <div
+          v-if="stream && !detected"
+          class="absolute inset-0 flex items-center justify-center pointer-events-none"
+          aria-hidden="true"
+        >
+          <div
+            class="rounded-lg border-2 border-dashed border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]"
+            :style="targetOverlayStyle"
+          ></div>
+        </div>
+        <p
+          v-if="stream && ocrReady && !detected"
+          class="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/70 px-3 py-1 text-sm text-white"
+        >
+          {{ guidanceText }}
+        </p>
+      </div>
       <canvas ref="canvasRef" class="hidden"></canvas>
 
       <button
@@ -143,22 +299,24 @@ onUnmounted(() => {
         type="button"
         class="min-h-[44px] flex items-center justify-center gap-2 rounded-lg bg-nimiq-blue-light px-4 font-medium text-nimiq-darkerblue transition-colors duration-200 hover:brightness-110 cursor-pointer"
         @click="startCamera"
+        data-testid="start-camera"
       >
         <IconCamera class="h-5 w-5" />
         Start camera
       </button>
-      <p v-if="stream && !ocrReady" class="text-sm text-nimiq-muted">
+      <p v-else-if="stream && !ocrReady" class="text-sm text-nimiq-muted">
         Preparing scanner…
       </p>
 
       <button
-        v-else-if="stream"
+        v-else-if="stream && !detected"
         type="button"
         :disabled="scanning"
         class="min-h-[44px] flex items-center justify-center gap-2 rounded-lg bg-nimiq-blue-light px-4 font-medium text-nimiq-darkerblue transition-colors duration-200 hover:brightness-110 disabled:opacity-50 cursor-pointer"
-        @click="scan"
+        @click="scanNow"
+        data-testid="scan-now"
       >
-        {{ scanning ? 'Scanning…' : 'Scan' }}
+        {{ scanning ? 'Scanning…' : 'Scan now' }}
       </button>
 
       <div
@@ -201,6 +359,7 @@ onUnmounted(() => {
           type="button"
           class="min-h-[44px] rounded-lg bg-nimiq-card-elevated px-4 font-medium transition-colors duration-200 hover:bg-white/10 cursor-pointer"
           @click="retry"
+          data-testid="retry"
         >
           Try again
         </button>
