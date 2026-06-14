@@ -1,5 +1,32 @@
 @import "tailwindcss";
 
+@theme {
+  /* Nimiq brand palette — https://nimiq.dev/raw/design-kit */
+  --color-nimiq-blue: #0582ca;
+  --color-nimiq-blue-light: #0ca6fe;
+  --color-nimiq-darkblue: #1f2348;
+  --color-nimiq-darkerblue: #17182b;
+  --color-nimiq-green: #13b59d;
+  --color-nimiq-green-light: #24cca2;
+  --color-nimiq-gold: #e9b213;
+  --color-nimiq-gold-light: #ffc43b;
+  --color-nimiq-orange: #fc8702;
+  --color-nimiq-red: #d94432;
+  --color-nimiq-red-light: #ff5c48;
+  --color-nimiq-purple: #5f4b8b;
+
+  /* Nimiq neutral scale (dark mode) */
+  --color-nimiq-card: #1e1f31;
+  --color-nimiq-card-elevated: #27283a;
+  --color-nimiq-border: #2e2f40;
+  --color-nimiq-muted: #8b8b95;
+  --color-nimiq-subtle: #515260;
+}
+
 html {
   touch-action: manipulation;
+}
+
+body {
+  background-color: var(--color-nimiq-darkerblue);
 }

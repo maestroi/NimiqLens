@@ -1,23 +1,43 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { useWalletStore } from './stores/wallet'
+import IconHexagonOutline from './components/icons/IconHexagonOutline.vue'
+import IconExchange from './components/icons/IconExchange.vue'
+import IconQr from './components/icons/IconQr.vue'
+import IconChart from './components/icons/IconChart.vue'
+import IconInfo from './components/icons/IconInfo.vue'
 
 const walletStore = useWalletStore()
 
 onMounted(() => {
   walletStore.init()
 })
+
+const navItems = [
+  { to: '/', label: 'Home', icon: IconHexagonOutline },
+  { to: '/convert', label: 'Convert', icon: IconExchange },
+  { to: '/scan', label: 'Scan', icon: IconQr },
+  { to: '/rates', label: 'Rates', icon: IconChart },
+  { to: '/about', label: 'About', icon: IconInfo },
+]
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-950 text-white">
+  <div class="min-h-screen bg-nimiq-darkerblue text-white">
     <router-view />
-    <nav class="fixed bottom-0 inset-x-0 bg-slate-900 border-t border-slate-800 flex">
-      <router-link to="/" class="flex-1 text-center py-3 min-h-[44px] text-sm active:bg-slate-800">Home</router-link>
-      <router-link to="/convert" class="flex-1 text-center py-3 min-h-[44px] text-sm active:bg-slate-800">Convert</router-link>
-      <router-link to="/scan" class="flex-1 text-center py-3 min-h-[44px] text-sm active:bg-slate-800">Scan</router-link>
-      <router-link to="/rates" class="flex-1 text-center py-3 min-h-[44px] text-sm active:bg-slate-800">Rates</router-link>
-      <router-link to="/about" class="flex-1 text-center py-3 min-h-[44px] text-sm active:bg-slate-800">About</router-link>
+    <nav
+      class="fixed inset-x-4 bottom-4 flex rounded-2xl border border-white/10 bg-nimiq-card/90 backdrop-blur-lg shadow-lg shadow-black/30"
+    >
+      <router-link
+        v-for="item in navItems"
+        :key="item.to"
+        :to="item.to"
+        class="group flex flex-1 flex-col items-center gap-1 py-2.5 min-h-[44px] text-xs font-medium text-nimiq-muted transition-colors duration-200 first:rounded-l-2xl last:rounded-r-2xl active:bg-white/5 cursor-pointer"
+        active-class="text-nimiq-blue-light"
+      >
+        <component :is="item.icon" class="h-5 w-5" />
+        {{ item.label }}
+      </router-link>
     </nav>
   </div>
 </template>

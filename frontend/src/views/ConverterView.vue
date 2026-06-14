@@ -5,6 +5,10 @@ import { useWalletStore } from '../stores/wallet'
 import { useScanStore } from '../stores/scan'
 import { ASSETS, FIAT_CURRENCIES, computeAssetAmount, formatAssetAmount, type Asset, type FiatCurrency } from '../lib/convert'
 import { affordability } from '../lib/affordability'
+import AssetIcon from '../components/icons/AssetIcon.vue'
+import IconAlert from '../components/icons/IconAlert.vue'
+import IconCheck from '../components/icons/IconCheck.vue'
+import IconLock from '../components/icons/IconLock.vue'
 
 const ratesStore = useRatesStore()
 const walletStore = useWalletStore()
@@ -60,19 +64,21 @@ function relativeTime(iso: string): string {
 </script>
 
 <template>
-  <div class="min-h-screen p-4 pb-24">
+  <div class="min-h-screen p-4 pb-28">
     <h1 class="text-2xl font-bold mb-4">Price Lens</h1>
 
     <div
       v-if="ratesStore.isStale"
-      class="mb-4 rounded-lg bg-amber-900/40 border border-amber-600 px-3 py-2 text-sm text-amber-200"
+      class="mb-4 flex items-center gap-2 rounded-lg border border-nimiq-gold/30 bg-nimiq-gold/10 px-3 py-2 text-sm text-nimiq-gold-light"
     >
+      <IconAlert class="h-4 w-4 shrink-0" />
       Rates from {{ ratesStore.rates ? relativeTime(ratesStore.rates.fetched_at) : 'an unknown time' }} ago — may be outdated
     </div>
     <div
       v-else-if="ratesStore.error && !ratesStore.rates"
-      class="mb-4 rounded-lg bg-red-900/40 border border-red-600 px-3 py-2 text-sm text-red-200"
+      class="mb-4 flex items-center gap-2 rounded-lg border border-nimiq-red/30 bg-nimiq-red/10 px-3 py-2 text-sm text-nimiq-red-light"
     >
+      <IconAlert class="h-4 w-4 shrink-0" />
       Rates unavailable — try again later
     </div>
 
@@ -84,44 +90,55 @@ function relativeTime(iso: string): string {
         min="0"
         step="0.01"
         placeholder="0.00"
-        class="flex-1 min-h-[44px] rounded-lg bg-slate-800 px-3 text-xl"
+        class="min-w-0 flex-1 min-h-[44px] rounded-lg bg-nimiq-card border border-nimiq-border px-3 text-xl focus:outline-2 focus:outline-nimiq-blue-light"
       />
-      <select v-model="currency" class="min-h-[44px] rounded-lg bg-slate-800 px-3 text-xl">
+      <select
+        v-model="currency"
+        class="w-24 shrink-0 min-h-[44px] rounded-lg bg-nimiq-card border border-nimiq-border px-3 text-xl cursor-pointer focus:outline-2 focus:outline-nimiq-blue-light"
+      >
         <option v-for="c in FIAT_CURRENCIES" :key="c" :value="c">{{ c }}</option>
       </select>
     </div>
 
-    <p v-if="ratesStore.loading && !ratesStore.rates" class="mb-4 text-slate-400">
+    <p v-if="ratesStore.loading && !ratesStore.rates" class="mb-4 text-nimiq-muted">
       Loading rates…
     </p>
 
-    <div v-if="conversions" class="grid grid-cols-2 gap-3 mb-4">
-      <div v-for="asset in ASSETS" :key="asset" class="rounded-xl bg-slate-800 p-4">
-        <div class="text-sm text-slate-400">{{ asset }}</div>
-        <div class="text-2xl font-semibold">{{ conversions[asset] }}</div>
+    <div v-if="conversions" class="flex flex-col gap-2 mb-4">
+      <div
+        v-for="asset in ASSETS"
+        :key="asset"
+        class="rounded-xl border border-nimiq-border bg-nimiq-card p-4 flex items-center gap-3"
+      >
+        <AssetIcon :asset="asset" class="h-8 w-8 shrink-0" />
+        <div class="text-sm text-nimiq-muted w-12 shrink-0">{{ asset }}</div>
+        <div class="flex-1 text-right text-xl font-semibold tabular-nums">{{ conversions[asset] }}</div>
       </div>
     </div>
 
-    <div v-if="affordabilityResult" class="rounded-xl bg-slate-800 p-4">
-      <div v-if="affordabilityResult.affordable" class="text-emerald-400 font-medium">
+    <div v-if="affordabilityResult" class="rounded-xl border border-nimiq-border bg-nimiq-card p-4">
+      <div v-if="affordabilityResult.affordable" class="flex items-center gap-2 font-medium text-nimiq-green-light">
+        <IconCheck class="h-4 w-4 shrink-0" />
         You can afford this with your NIM balance
       </div>
-      <div v-else class="text-amber-400 font-medium">
+      <div v-else class="flex items-center gap-2 font-medium text-nimiq-gold-light">
+        <IconAlert class="h-4 w-4 shrink-0" />
         You need ≈ {{ formatNim(affordabilityResult.deficit) }} more NIM
       </div>
-      <p v-if="nimAmountNeeded !== null" class="mt-2 text-sm text-slate-300">
+      <p v-if="nimAmountNeeded !== null" class="mt-2 text-sm text-nimiq-muted">
         Price requires ≈ {{ formatNim(nimAmountNeeded) }} NIM
       </p>
-      <p v-if="spendableBalance !== null" class="mt-1 text-sm text-slate-300">
+      <p v-if="spendableBalance !== null" class="mt-1 text-sm text-nimiq-muted">
         You have {{ formatNim(spendableBalance) }} spendable NIM
       </p>
-      <p v-if="walletStore.lockedBalanceNim" class="mt-1 text-sm text-slate-400">
+      <p v-if="walletStore.lockedBalanceNim" class="mt-1 flex items-center gap-1.5 text-sm text-nimiq-muted">
+        <IconLock class="h-3.5 w-3.5 shrink-0" />
         {{ formatNim(walletStore.lockedBalanceNim) }} NIM is locked and cannot currently be spent
       </p>
     </div>
     <div
       v-else-if="walletStore.address && walletStore.balanceError"
-      class="rounded-xl bg-slate-800 p-4 text-slate-400"
+      class="rounded-xl border border-nimiq-border bg-nimiq-card p-4 text-nimiq-muted"
     >
       Balance unavailable
     </div>
