@@ -85,4 +85,28 @@ describe('detectPrice', () => {
   it('prefers the selected scan currency over a noisy OCR currency code', () => {
     expect(detectPrice('1,99 GBP', 'EUR')).toEqual({ amount: 1.99, currency: 'EUR' })
   })
+
+  it('detects a symbol price when OCR splits the whole and decimal fragments', () => {
+    expect(detectPrice('€ 3. 99')).toEqual({ amount: 3.99, currency: 'EUR' })
+  })
+
+  it('detects a fallback-currency price when OCR splits the whole and decimal fragments', () => {
+    expect(detectPrice('3 . 99', 'EUR')).toEqual({ amount: 3.99, currency: 'EUR' })
+  })
+
+  it('detects a symbol price when OCR splits the decimal fragment onto the next line', () => {
+    expect(detectPrice('€ 3.\n99')).toEqual({ amount: 3.99, currency: 'EUR' })
+  })
+
+  it('detects a fallback-currency price when OCR splits the decimal fragment onto the next line', () => {
+    expect(detectPrice('3.\n99', 'EUR')).toEqual({ amount: 3.99, currency: 'EUR' })
+  })
+
+  it('detects a symbol price when OCR drops the separator between whole and cents', () => {
+    expect(detectPrice('€ 3 99')).toEqual({ amount: 3.99, currency: 'EUR' })
+  })
+
+  it('detects a fallback-currency price when OCR drops the separator between whole and cents', () => {
+    expect(detectPrice('3 99', 'EUR')).toEqual({ amount: 3.99, currency: 'EUR' })
+  })
 })
