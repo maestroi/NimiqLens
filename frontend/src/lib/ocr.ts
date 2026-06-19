@@ -1,4 +1,5 @@
 import type Tesseract from 'tesseract.js'
+import { getFrontendVersion } from './version'
 
 type Worker = Tesseract.Worker
 type Page = Tesseract.Page
@@ -79,8 +80,13 @@ function flattenWords(page: Page): OcrWord[] {
 }
 
 let workerPromise: Promise<Worker> | null = null
+const ocrAssetVersion = encodeURIComponent(getFrontendVersion().shortCommit)
 
 function ocrAssetPath(path: string): string {
+  return `${import.meta.env.BASE_URL.replace(/\/$/, '')}/ocr/${path}?v=${ocrAssetVersion}`
+}
+
+function ocrAssetBase(path: string): string {
   return `${import.meta.env.BASE_URL.replace(/\/$/, '')}/ocr/${path}`
 }
 
@@ -88,8 +94,8 @@ async function loadWorker(): Promise<Worker> {
   const { createWorker } = await import('tesseract.js')
   const worker = await createWorker('eng', 1, {
     workerPath: ocrAssetPath('worker.min.js'),
-    corePath: ocrAssetPath('core'),
-    langPath: ocrAssetPath('lang'),
+    corePath: ocrAssetBase('core'),
+    langPath: ocrAssetBase('lang'),
     workerBlobURL: false,
   })
   await worker.setParameters({

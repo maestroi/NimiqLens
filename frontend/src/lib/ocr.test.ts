@@ -96,7 +96,7 @@ describe('ocr worker', () => {
     await prepareOcrWorker()
 
     expect(createWorker).toHaveBeenCalledWith('eng', 1, {
-      workerPath: '/ocr/worker.min.js',
+      workerPath: expect.stringMatching(/^\/ocr\/worker\.min\.js\?v=(dev|[a-f0-9]{7})$/),
       corePath: '/ocr/core',
       langPath: '/ocr/lang',
       workerBlobURL: false,

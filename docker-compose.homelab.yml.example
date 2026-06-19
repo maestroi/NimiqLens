@@ -11,8 +11,9 @@
 #
 # Assumes an external Traefik instance with:
 #   - an HTTPS entrypoint named "websecure"
-#   - a certificate resolver named "letsencrypt"
 #   - an external Docker network named "traefik"
+# If your Traefik stack terminates TLS itself with ACME, add the matching
+# traefik.http.routers.*.tls.certresolver label for your resolver name.
 # Adjust the deploy.labels below if your Traefik setup differs.
 
 services:
@@ -26,13 +27,16 @@ services:
     networks:
       - traefik
     deploy:
+      placement:
+        constraints:
+          - node.role == worker
       restart_policy:
         condition: any
       labels:
         - traefik.enable=true
         - traefik.http.routers.nimlens-api.rule=Host(`api-nimiqlens.example.com`)
         - traefik.http.routers.nimlens-api.entrypoints=websecure
-        - traefik.http.routers.nimlens-api.tls.certresolver=letsencrypt
+        - traefik.http.routers.nimlens-api.tls=true
         - traefik.http.services.nimlens-api.loadbalancer.server.port=8787
 
   frontend:
@@ -45,13 +49,16 @@ services:
     networks:
       - traefik
     deploy:
+      placement:
+        constraints:
+          - node.role == worker
       restart_policy:
         condition: any
       labels:
         - traefik.enable=true
         - traefik.http.routers.nimlens.rule=Host(`nimiqlens.example.com`)
         - traefik.http.routers.nimlens.entrypoints=websecure
-        - traefik.http.routers.nimlens.tls.certresolver=letsencrypt
+        - traefik.http.routers.nimlens.tls=true
         - traefik.http.services.nimlens.loadbalancer.server.port=80
 
 networks:
