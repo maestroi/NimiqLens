@@ -16,7 +16,10 @@ const sampleRates: api.RatesResponse = {
   source: 'CoinGecko',
 }
 
+const EXPECTED_REFRESH_AFTER_MS = 45_000
+
 beforeEach(() => {
+  vi.useRealTimers()
   setActivePinia(createPinia())
   vi.restoreAllMocks()
 })
@@ -52,13 +55,40 @@ describe('useRatesStore', () => {
     expect(store.isStale).toBe(true)
   })
 
-  it('treats rates as stale once fetched_at is older than 60 seconds', async () => {
+  it('keeps backend-cached rates fresh long enough for auto refresh to replace them', async () => {
     const old = new Date(Date.now() - 61_000).toISOString()
     vi.spyOn(api, 'fetchRates').mockResolvedValue({ ...sampleRates, fetched_at: old })
 
     const store = useRatesStore()
     await store.load()
 
+    expect(store.isStale).toBe(false)
+  })
+
+  it('treats rates as stale once fetched_at is older than five minutes', async () => {
+    const old = new Date(Date.now() - 301_000).toISOString()
+    vi.spyOn(api, 'fetchRates').mockResolvedValue({ ...sampleRates, fetched_at: old })
+
+    const store = useRatesStore()
+    await store.load()
+
     expect(store.isStale).toBe(true)
+  })
+
+  it('automatically refreshes rates from the backend', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-06-13T16:30:00Z'))
+    const fetchRates = vi.spyOn(api, 'fetchRates')
+      .mockResolvedValueOnce(sampleRates)
+      .mockResolvedValueOnce({
+        ...sampleRates,
+        fetched_at: new Date(Date.now() + EXPECTED_REFRESH_AFTER_MS).toISOString(),
+      })
+
+    const store = useRatesStore()
+    await store.load()
+    await vi.advanceTimersByTimeAsync(EXPECTED_REFRESH_AFTER_MS)
+
+    expect(fetchRates).toHaveBeenCalledTimes(2)
   })
 })

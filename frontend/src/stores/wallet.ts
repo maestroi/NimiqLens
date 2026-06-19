@@ -4,11 +4,7 @@ import { initNimiq, providerResult, type NimiqProvider } from '../lib/nimiq'
 import { fetchBalanceFromProvider } from '../lib/balance'
 import { fetchBalance } from '../lib/api'
 import { shortenAddress } from '../lib/address'
-import {
-  isLikelyNimiqAddress,
-  readCachedWalletAddress,
-  writeCachedWalletAddress,
-} from '../lib/walletSession'
+import { writeCachedWalletAddress } from '../lib/walletSession'
 
 /** 1000 NIM, in Luna (1 NIM = 100,000 Luna). */
 export const TIP_AMOUNT_LUNA = 100_000_000
@@ -20,6 +16,31 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
     timeout = setTimeout(() => reject(new Error('Nimiq Pay did not respond. Try again.')), timeoutMs)
   })
   return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timeout))
+}
+
+async function selectAccountForBalance(
+  provider: Pick<NimiqProvider, 'getRPC'>,
+  accounts: string[],
+): Promise<{ address: string | null; balanceNim: number | null }> {
+  const firstAccount = accounts[0] ?? null
+  if (!firstAccount || !provider.getRPC?.()) return { address: firstAccount, balanceNim: null }
+
+  let selectedAddress = firstAccount
+  let selectedBalance: number | null = null
+
+  for (const account of accounts) {
+    try {
+      const balance = await fetchBalanceFromProvider(provider, account)
+      if (selectedBalance === null || balance.balance_nim > selectedBalance) {
+        selectedAddress = account
+        selectedBalance = balance.balance_nim
+      }
+    } catch {
+      // Keep connect usable even if one listed account cannot be read.
+    }
+  }
+
+  return { address: selectedAddress, balanceNim: selectedBalance }
 }
 
 export const useWalletStore = defineStore('wallet', {
@@ -47,18 +68,8 @@ export const useWalletStore = defineStore('wallet', {
       this.isInsideNimiqPay = this.provider !== null
       this.initialized = true
       if (this.isInsideNimiqPay) {
-        void this.restoreSession()
+        writeCachedWalletAddress(null)
       }
-    },
-    async restoreSession() {
-      if (!this.provider) return
-      const cached = readCachedWalletAddress()
-      if (!cached || !isLikelyNimiqAddress(cached)) return
-
-      this.sessionRestored = true
-      this.connectionError = null
-      this.address = cached
-      await this.loadBalance()
     },
     async connect() {
       if (!this.provider || this.connecting) return
@@ -69,10 +80,16 @@ export const useWalletStore = defineStore('wallet', {
         const accounts = providerResult(
           await withTimeout(this.provider.listAccounts(), ACCOUNT_REQUEST_TIMEOUT_MS),
         )
-        this.address = accounts[0] ?? null
+        const selected = await selectAccountForBalance(this.provider, accounts)
+        this.address = selected.address
         if (this.address) {
           writeCachedWalletAddress(this.address)
-          await this.loadBalance()
+          if (selected.balanceNim !== null) {
+            this.balanceNim = selected.balanceNim
+            this.balanceError = null
+          } else {
+            await this.loadBalance()
+          }
         } else {
           writeCachedWalletAddress(null)
         }

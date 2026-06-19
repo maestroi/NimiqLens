@@ -14,8 +14,8 @@ const router = useRouter()
 const walletStore = useWalletStore()
 const preferencesStore = usePreferencesStore()
 
-onMounted(async () => {
-  await walletStore.init()
+onMounted(() => {
+  void walletStore.init()
   if (!preferencesStore.onboardingComplete && route.name !== 'onboarding') {
     router.replace('/onboarding')
   }

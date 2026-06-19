@@ -1,19 +1,16 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import WelcomeView from '../views/WelcomeView.vue'
-import ConverterView from '../views/ConverterView.vue'
-import ScanView from '../views/ScanView.vue'
-import RatesView from '../views/RatesView.vue'
-import AboutView from '../views/AboutView.vue'
-import OnboardingView from '../views/OnboardingView.vue'
+
+export const routes = [
+  { path: '/', name: 'welcome', component: WelcomeView },
+  { path: '/convert', name: 'convert', component: () => import('../views/ConverterView.vue') },
+  { path: '/scan', name: 'scan', component: () => import('../views/ScanView.vue') },
+  { path: '/rates', name: 'rates', component: () => import('../views/RatesView.vue') },
+  { path: '/about', name: 'about', component: () => import('../views/AboutView.vue') },
+  { path: '/onboarding', name: 'onboarding', component: () => import('../views/OnboardingView.vue') },
+]
 
 export const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
-  routes: [
-    { path: '/', name: 'welcome', component: WelcomeView },
-    { path: '/convert', name: 'convert', component: ConverterView },
-    { path: '/scan', name: 'scan', component: ScanView },
-    { path: '/rates', name: 'rates', component: RatesView },
-    { path: '/about', name: 'about', component: AboutView },
-    { path: '/onboarding', name: 'onboarding', component: OnboardingView },
-  ],
+  routes,
 })

@@ -48,19 +48,21 @@ describe('useWalletStore', () => {
     expect(store.address).toBeNull()
   })
 
-  it('restores a saved wallet on init without calling listAccounts', async () => {
+  it('does not restore a saved wallet on init because it may be stale or the top-up account', async () => {
     writeCachedWalletAddress(ADDRESS)
     const listAccounts = vi.fn()
     vi.spyOn(nimiq, 'initNimiq').mockResolvedValue({ listAccounts } as any)
-    vi.spyOn(api, 'fetchBalance').mockResolvedValue({ address: ADDRESS, balance_nim: 99.12 })
+    const fetchBalance = vi.spyOn(api, 'fetchBalance').mockResolvedValue({ address: ADDRESS, balance_nim: 99.12 })
 
     const store = useWalletStore()
     await store.init()
 
     expect(listAccounts).not.toHaveBeenCalled()
-    expect(store.address).toBe(ADDRESS)
-    expect(store.balanceNim).toBe(99.12)
-    expect(store.sessionRestored).toBe(true)
+    expect(fetchBalance).not.toHaveBeenCalled()
+    expect(store.address).toBeNull()
+    expect(store.balanceNim).toBeNull()
+    expect(store.sessionRestored).toBe(false)
+    expect(readCachedWalletAddress()).toBeNull()
   })
 
   it('persists the wallet address after a successful connect', async () => {
@@ -146,7 +148,7 @@ describe('useWalletStore', () => {
     expect(api.fetchBalance).not.toHaveBeenCalled()
   })
 
-  it('keeps the provider-approved account even when another listed account has more balance', async () => {
+  it('selects the listed account with the highest wallet RPC balance instead of the top-up account', async () => {
     const call = vi.fn(async ({ params: [address] }) => ({
       address,
       balance: address === WALLET_ADDRESS ? 100_100_000 : 0,
@@ -161,9 +163,9 @@ describe('useWalletStore', () => {
     await store.init()
     await store.connect()
 
-    expect(store.address).toBe(TOPUP_ADDRESS)
-    expect(store.balanceNim).toBe(0)
-    expect(readCachedWalletAddress()).toBe(TOPUP_ADDRESS)
+    expect(store.address).toBe(WALLET_ADDRESS)
+    expect(store.balanceNim).toBe(1001)
+    expect(readCachedWalletAddress()).toBe(WALLET_ADDRESS)
   })
 
   it('connects, stores the shortened address, and loads the balance', async () => {

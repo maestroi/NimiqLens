@@ -28,7 +28,7 @@ export function providerResult<T>(result: T | ProviderErrorResponse): T {
  * the app is not running inside Nimiq Pay or initialization times out, so the
  * app can fall back to a non-wallet experience.
  */
-export async function initNimiq(timeout = 10_000): Promise<NimiqProvider | null> {
+export async function initNimiq(timeout = 750): Promise<NimiqProvider | null> {
   if (provider) return provider
   try {
     provider = await init({ timeout })

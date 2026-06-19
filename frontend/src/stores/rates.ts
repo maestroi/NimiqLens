@@ -1,7 +1,16 @@
 import { defineStore } from 'pinia'
 import { fetchRates, type RatesResponse } from '../lib/api'
 
-const STALE_AFTER_MS = 60_000
+const STALE_AFTER_MS = 5 * 60_000
+const RATES_REFRESH_AFTER_MS = 45_000
+
+let refreshTimer: ReturnType<typeof setTimeout> | null = null
+
+function clearRefreshTimer() {
+  if (!refreshTimer) return
+  clearTimeout(refreshTimer)
+  refreshTimer = null
+}
 
 export const useRatesStore = defineStore('rates', {
   state: () => ({
@@ -17,7 +26,14 @@ export const useRatesStore = defineStore('rates', {
     },
   },
   actions: {
+    scheduleRefresh() {
+      clearRefreshTimer()
+      refreshTimer = setTimeout(() => {
+        void this.load()
+      }, RATES_REFRESH_AFTER_MS)
+    },
     async load() {
+      if (this.loading) return
       this.loading = true
       this.error = null
       try {
@@ -26,6 +42,7 @@ export const useRatesStore = defineStore('rates', {
         this.error = e instanceof Error ? e.message : String(e)
       } finally {
         this.loading = false
+        this.scheduleRefresh()
       }
     },
   },
