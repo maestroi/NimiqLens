@@ -50,7 +50,7 @@ async function ensureOcrReady(): Promise<boolean> {
     return true
   } catch (error) {
     ocrReady.value = false
-    scannerError.value = `Scanner unavailable: ${error instanceof Error ? error.message : String(error)}`
+    scannerError.value = error instanceof Error ? error.message : String(error)
     return false
   }
 }
@@ -311,9 +311,9 @@ onUnmounted(() => {
       <div class="flex items-start gap-2">
         <IconAlert class="mt-0.5 h-4 w-4 shrink-0" />
         <div>
-          <p class="font-medium">Scanner is unavailable on this device.</p>
+          <p class="font-medium">Scanner setup needs a retry.</p>
           <p class="mt-1">{{ scannerError }}</p>
-          <p class="mt-1 text-nimiq-muted">Enter the price manually while scanner support is unavailable.</p>
+          <p class="mt-1 text-nimiq-muted">Check the connection, then retry scanner setup.</p>
         </div>
       </div>
       <button

@@ -525,23 +525,24 @@ describe('ScanView', () => {
     const wrapper = mount(ScanView, { global: { stubs } })
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Scanner unavailable: worker failed')
+    expect(wrapper.text()).toContain('Scanner setup needs a retry.')
+    expect(wrapper.text()).toContain('worker failed')
 
     await wrapper.get('[data-testid="start-camera"]').trigger('click')
     await flushPromises()
 
     expect(mocks.prepareOcrWorker).toHaveBeenCalledTimes(2)
-    expect(wrapper.text()).not.toContain('Scanner unavailable')
+    expect(wrapper.text()).not.toContain('Scanner setup needs a retry.')
     expect(wrapper.find('[data-testid="scan-now"]').exists()).toBe(true)
   })
 
-  it('keeps manual conversion and scanner retry visible when OCR is unavailable', async () => {
+  it('keeps scanner retry visible when OCR setup fails', async () => {
     mocks.prepareOcrWorker.mockRejectedValueOnce(new Error('worker failed'))
     const wrapper = mount(ScanView, { global: { stubs } })
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Scanner is unavailable on this device.')
-    expect(wrapper.text()).toContain('Enter the price manually while scanner support is unavailable.')
+    expect(wrapper.text()).toContain('Scanner setup needs a retry.')
+    expect(wrapper.text()).toContain('Check the connection, then retry scanner setup.')
     expect(wrapper.find('[data-testid="retry-scanner"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('Enter price manually')
   })

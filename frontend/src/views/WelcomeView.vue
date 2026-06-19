@@ -159,7 +159,7 @@ async function refreshBalance() {
         Start camera scan
       </router-link>
       <p class="px-4 pb-3 text-center text-xs text-nimiq-muted">
-        If scanner is unavailable, use manual conversion.
+        Point your camera at a price tag, receipt, or menu.
       </p>
     </div>
   </div>

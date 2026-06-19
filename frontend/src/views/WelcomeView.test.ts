@@ -93,13 +93,13 @@ describe('WelcomeView', () => {
     expect(walletStore.connect).toHaveBeenCalledOnce()
   })
 
-  it('shows that camera scan has a manual fallback', () => {
+  it('shows camera scan as a primary action', () => {
     const walletStore = useWalletStore()
     walletStore.$patch({ initialized: true })
 
     const wrapper = mountView()
 
     expect(wrapper.text()).toContain('Start camera scan')
-    expect(wrapper.text()).toContain('If scanner is unavailable, use manual conversion.')
+    expect(wrapper.text()).toContain('Point your camera at a price tag, receipt, or menu.')
   })
 })
