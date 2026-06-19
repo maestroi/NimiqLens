@@ -55,6 +55,13 @@ async function ensureOcrReady(): Promise<boolean> {
   }
 }
 
+async function retryScanner() {
+  const ready = await ensureOcrReady()
+  if (ready && stream.value && !detected.value) {
+    startAutoScan()
+  }
+}
+
 const guidanceText = computed(() => {
   switch (guidance.value) {
     case 'hold-steady':
@@ -261,9 +268,9 @@ function handleVisibilityChange() {
 onMounted(() => {
   void ensureOcrReady().then((ready) => {
     if (ready) {
-    if (stream.value && !detected.value) {
-      startAutoScan()
-    }
+      if (stream.value && !detected.value) {
+        startAutoScan()
+      }
     }
   })
   document.addEventListener('visibilitychange', handleVisibilityChange)
@@ -297,6 +304,28 @@ onUnmounted(() => {
       </select>
     </label>
 
+    <div
+      v-if="scannerError"
+      class="flex flex-col gap-3 rounded-lg border border-nimiq-red/30 bg-nimiq-red/10 px-3 py-3 text-sm text-nimiq-red-light"
+    >
+      <div class="flex items-start gap-2">
+        <IconAlert class="mt-0.5 h-4 w-4 shrink-0" />
+        <div>
+          <p class="font-medium">Scanner is unavailable on this device.</p>
+          <p class="mt-1">{{ scannerError }}</p>
+          <p class="mt-1 text-nimiq-muted">Enter the price manually while scanner support is unavailable.</p>
+        </div>
+      </div>
+      <button
+        type="button"
+        class="min-h-[44px] rounded-lg bg-nimiq-card px-4 font-medium text-white transition-colors duration-200 hover:bg-nimiq-card-elevated cursor-pointer"
+        @click="retryScanner"
+        data-testid="retry-scanner"
+      >
+        Retry scanner
+      </button>
+    </div>
+
     <div v-if="!cameraSupported" class="rounded-lg bg-nimiq-card border border-nimiq-border p-4 text-nimiq-muted">
       <template v-if="insecureContext">
         Camera access requires HTTPS on mobile. Reopen NimLens from a secure HTTPS URL.
@@ -314,14 +343,6 @@ onUnmounted(() => {
         <IconAlert class="h-4 w-4 shrink-0" />
         Camera access failed: {{ cameraError }}
       </div>
-      <div
-        v-if="scannerError"
-        class="flex items-center gap-2 rounded-lg border border-nimiq-red/30 bg-nimiq-red/10 px-3 py-2 text-sm text-nimiq-red-light"
-      >
-        <IconAlert class="h-4 w-4 shrink-0" />
-        {{ scannerError }}
-      </div>
-
       <div class="relative">
         <video ref="videoRef" class="w-full rounded-xl bg-black aspect-video object-cover" muted playsinline></video>
         <div

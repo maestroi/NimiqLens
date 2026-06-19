@@ -92,4 +92,14 @@ describe('WelcomeView', () => {
     expect(wrapper.text()).toContain('User rejected')
     expect(walletStore.connect).toHaveBeenCalledOnce()
   })
+
+  it('shows that camera scan has a manual fallback', () => {
+    const walletStore = useWalletStore()
+    walletStore.$patch({ initialized: true })
+
+    const wrapper = mountView()
+
+    expect(wrapper.text()).toContain('Start camera scan')
+    expect(wrapper.text()).toContain('If scanner is unavailable, use manual conversion.')
+  })
 })

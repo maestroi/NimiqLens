@@ -144,12 +144,12 @@ onMounted(() => {
       </button>
     </template>
 
-    <h2 class="text-lg font-semibold text-nimiq-blue-light">Diagnostics</h2>
+    <h2 class="text-lg font-semibold text-nimiq-blue-light">Version</h2>
     <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-2 rounded-lg border border-nimiq-border bg-nimiq-card p-3 text-sm">
       <dt class="text-nimiq-muted">Frontend</dt>
       <dd class="font-mono">{{ shortCommit(frontendVersion.commitHash) }}</dd>
 
-      <dt class="text-nimiq-muted">Built</dt>
+      <dt class="text-nimiq-muted">Build date</dt>
       <dd class="break-all">{{ frontendVersion.buildTime }}</dd>
 
       <dt class="text-nimiq-muted">API</dt>

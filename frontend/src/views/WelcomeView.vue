@@ -150,12 +150,17 @@ async function refreshBalance() {
       <IconExchange class="h-4 w-4 text-nimiq-blue-light" />
       Start manual conversion
     </router-link>
-    <router-link
-      to="/scan"
-      class="min-h-[44px] flex items-center justify-center gap-2 rounded-lg bg-nimiq-card px-4 py-3 font-medium text-center transition-colors duration-200 hover:bg-nimiq-card-elevated cursor-pointer"
-    >
-      <IconQr class="h-4 w-4 text-nimiq-blue-light" />
-      Start camera scan
-    </router-link>
+    <div class="rounded-lg bg-nimiq-card transition-colors duration-200 hover:bg-nimiq-card-elevated">
+      <router-link
+        to="/scan"
+        class="min-h-[44px] flex items-center justify-center gap-2 px-4 pt-3 font-medium text-center cursor-pointer"
+      >
+        <IconQr class="h-4 w-4 text-nimiq-blue-light" />
+        Start camera scan
+      </router-link>
+      <p class="px-4 pb-3 text-center text-xs text-nimiq-muted">
+        If scanner is unavailable, use manual conversion.
+      </p>
+    </div>
   </div>
 </template>

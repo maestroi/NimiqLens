@@ -48,7 +48,9 @@ describe('AboutView', () => {
     const wrapper = mount(AboutView)
     await vi.waitFor(() => expect(wrapper.text()).toContain('backend1'))
 
+    expect(wrapper.text()).toContain('Version')
     expect(wrapper.text()).toContain('Frontend')
+    expect(wrapper.text()).toContain('Build date')
     expect(wrapper.text()).toContain('API')
   })
 
